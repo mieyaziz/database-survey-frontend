@@ -315,6 +315,136 @@ Object.defineProperty(window, 'google', {
 
 }
 
+
+/* =========================================================
+   PREMIUM UI V2 OVERRIDES
+========================================================= */
+.header {
+  padding: 16px 24px;
+  background: linear-gradient(135deg, #0f172a 0%, #172554 55%, #1e293b 100%);
+  box-shadow: 0 8px 28px rgba(15, 23, 42, .16);
+}
+.header-inner {
+  max-width: 1240px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.brand-mark {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 14px;
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.12);
+  font-size: 22px;
+}
+.brand-copy { flex: 1; min-width: 0; }
+.header h1 { font-size: 18px; letter-spacing: .1px; }
+.header p { margin-top: 3px; font-size: 11px; opacity: .68; }
+.header-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.10);
+  color: rgba(255,255,255,.82);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .8px;
+}
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 4px rgba(34,197,94,.13); }
+.container { max-width: 1240px; padding: 24px 20px 36px; }
+.card, .filter-card { box-shadow: 0 8px 26px rgba(15,23,42,.055); }
+
+/* Desktop/mobile collapse correctness */
+.mobile-filter-header, .mobile-search-header { display: none !important; }
+.filter-content, .search-content { display: block !important; }
+@media (max-width: 600px) {
+  .mobile-filter-header, .mobile-search-header { display: flex !important; }
+  .desktop-filter-title, .desktop-search-title { display: none !important; }
+  .filter-content, .search-content { display: none !important; }
+  .filter-content.mobile-filter-open, .search-content.mobile-search-open { display: block !important; }
+  .header-inner { gap: 9px; }
+  .header-status { display: none; }
+  .brand-mark { width: 38px; height: 38px; border-radius: 12px; }
+  .header h1 { font-size: 16px; }
+  .header p { font-size: 10px; }
+}
+
+/* Active filter strip */
+.active-filter-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: -3px 0 12px;
+  padding: 9px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+.active-filter-title {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .7px;
+  color: #64748b;
+}
+.active-filter-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 700;
+  color: #334155;
+}
+
+/* Four KPI cards */
+.summary-card { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+.summary-item { min-height: 82px; padding: 15px 16px; border-radius: 17px; }
+.summary-voters { border-top: 3px solid #2563eb; }
+.summary-houses { border-top: 3px solid #0f766e; }
+.summary-culled { border-top: 3px solid #16a34a; }
+.summary-pending { border-top: 3px solid #f59e0b; }
+.summary-voters .summary-icon { background: #eff6ff; }
+.summary-houses .summary-icon { background: #ecfeff; }
+.summary-culled .summary-icon { background: #f0fdf4; color: #15803d; }
+.summary-pending .summary-icon { background: #fffbeb; color: #b45309; }
+.summary-content span { font-size: 25px; }
+
+/* List header */
+.voter-list-header {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px !important;
+}
+.voter-list-title-wrap { min-width: 0; }
+.voter-list-title { font-size: 17px; font-weight: 900; color: #111827; }
+.voter-list-meta { margin-top: 3px; font-size: 10px; font-weight: 700; color: #94a3b8; }
+.btn-print { border-radius: 10px !important; padding: 9px 12px !important; font-size: 10px !important; font-weight: 900 !important; }
+
+@media (max-width: 900px) {
+  .summary-card { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  .active-filter-summary { align-items: flex-start; flex-direction: column; gap: 3px; margin-top: 0; }
+  .summary-card { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+  .summary-item { min-height: 70px; padding: 12px 11px; }
+  .summary-content span { font-size: 22px; }
+  .voter-list-header { align-items: flex-start !important; }
+  .voter-list-title { font-size: 15px; }
+  .voter-list-meta { font-size: 9px; }
+  .btn-print { white-space: nowrap; padding: 8px 9px !important; }
+}
+
 </style>
 
 
@@ -2270,9 +2400,17 @@ function showPremiumNotification(
 
     <div class="header-inner">
 
-      <h1>Survey System</h1>
+      <div class="brand-mark">🗳️</div>
 
-      <p>Database Survey</p>
+      <div class="brand-copy">
+        <h1>Database Survey System</h1>
+        <p>Voter Survey &amp; Cula Management Platform</p>
+      </div>
+
+      <div class="header-status">
+        <span class="status-dot"></span>
+        LIVE SYSTEM
+      </div>
 
     </div>
 
@@ -2800,47 +2938,43 @@ function showPremiumNotification(
      SUMMARY
 ========================= -->
 
+<div id="activeFilterSummary" class="active-filter-summary">
+  <div class="active-filter-title">🔎 FILTER AKTIF</div>
+  <div id="activeFilterText" class="active-filter-text">Semua pemilih</div>
+</div>
+
 <div id="summary" class="summary-card">
 
-  <div class="summary-item">
-
-    <div class="summary-icon">
-      👥
-    </div>
-
+  <div class="summary-item summary-voters">
+    <div class="summary-icon">👥</div>
     <div class="summary-content">
-
-      <span id="voterCount">
-        0
-      </span>
-
-      <small>
-        JUMLAH PEMILIH
-      </small>
-
+      <span id="voterCount">0</span>
+      <small>JUMLAH PEMILIH</small>
     </div>
-
   </div>
 
-
-  <div class="summary-item">
-
-    <div class="summary-icon">
-      🏠
-    </div>
-
+  <div class="summary-item summary-houses">
+    <div class="summary-icon">🏠</div>
     <div class="summary-content">
-
-      <span id="houseCount">
-        0
-      </span>
-
-      <small>
-        JUMLAH RUMAH
-      </small>
-
+      <span id="houseCount">0</span>
+      <small>JUMLAH RUMAH</small>
     </div>
+  </div>
 
+  <div class="summary-item summary-culled">
+    <div class="summary-icon">✓</div>
+    <div class="summary-content">
+      <span id="culledCount">0</span>
+      <small>SUDAH CULA</small>
+    </div>
+  </div>
+
+  <div class="summary-item summary-pending">
+    <div class="summary-icon">◉</div>
+    <div class="summary-content">
+      <span id="pendingCount">0</span>
+      <small>BELUM CULA</small>
+    </div>
   </div>
 
 </div>
@@ -2855,9 +2989,10 @@ function showPremiumNotification(
 
       <div class="section-title voter-list-header">
 
-          <span>
-              👥 Senarai Pemilih
-         </span>
+          <div class="voter-list-title-wrap">
+            <div class="voter-list-title">👥 Senarai Pemilih</div>
+            <div id="voterListMeta" class="voter-list-meta">0 rekod</div>
+          </div>
 
          <button
            type="button"
@@ -4831,63 +4966,55 @@ function escapePrintHTML(value) {
 
 function updateSummary(data) {
 
-  const voterCount =
-    document.getElementById('voterCount');
+  const list = Array.isArray(data) ? data : [];
+  const voterCount = document.getElementById('voterCount');
+  const houseCount = document.getElementById('houseCount');
+  const culledCount = document.getElementById('culledCount');
+  const pendingCount = document.getElementById('pendingCount');
+  const voterListMeta = document.getElementById('voterListMeta');
 
-  const houseCount =
-    document.getElementById('houseCount');
+  const houses = new Set();
+  let culled = 0;
+  let pending = 0;
 
+  list.forEach(function(voter) {
+    const rumah = String(voter['No. Rumah'] || '').trim();
+    if (rumah) houses.add(rumah);
 
-  if (!voterCount || !houseCount) {
-    return;
+    const cula = String(voter['Kod Cula'] || '').trim();
+    if (cula && cula !== '?') culled++;
+    else pending++;
+  });
+
+  if (voterCount) voterCount.textContent = list.length.toLocaleString('ms-MY');
+  if (houseCount) houseCount.textContent = houses.size.toLocaleString('ms-MY');
+  if (culledCount) culledCount.textContent = culled.toLocaleString('ms-MY');
+  if (pendingCount) pendingCount.textContent = pending.toLocaleString('ms-MY');
+  if (voterListMeta) voterListMeta.textContent = list.length.toLocaleString('ms-MY') + ' rekod';
+
+  const active = document.getElementById('activeFilterText');
+  if (active) {
+    const dm = document.getElementById('dmSelect');
+    const lokaliti = document.getElementById('localitySelect');
+    const cula = document.getElementById('kodCulaSelect');
+    const ageFrom = document.getElementById('ageFrom');
+    const ageTo = document.getElementById('ageTo');
+    const gender = document.getElementById('genderSelect');
+    const race = document.getElementById('raceSelect');
+    const month = document.getElementById('birthMonthSelect');
+    const parts = [];
+
+    if (dm && dm.value) parts.push('DM: ' + (dm.options[dm.selectedIndex]?.text || dm.value));
+    if (lokaliti && lokaliti.value) parts.push('Lokaliti: ' + (lokaliti.options[lokaliti.selectedIndex]?.text || lokaliti.value));
+    if (cula && cula.value) parts.push('Cula: ' + (cula.options[cula.selectedIndex]?.text || cula.value));
+    if (ageFrom && ageFrom.value) parts.push('Umur ≥ ' + ageFrom.value);
+    if (ageTo && ageTo.value) parts.push('Umur ≤ ' + ageTo.value);
+    if (month && month.value) parts.push('Bulan: ' + (month.options[month.selectedIndex]?.text || month.value));
+    if (gender && gender.value) parts.push('Jantina: ' + (gender.options[gender.selectedIndex]?.text || gender.value));
+    if (race && race.value) parts.push('Bangsa: ' + (race.options[race.selectedIndex]?.text || race.value));
+
+    active.textContent = parts.length ? parts.join('  •  ') : 'Semua pemilih';
   }
-
-
-  // =========================
-  // JUMLAH PEMILIH
-  // =========================
-
-  const totalVoters =
-    Array.isArray(data)
-      ? data.length
-      : 0;
-
-
-  voterCount.textContent =
-    totalVoters;
-
-
-  // =========================
-  // JUMLAH RUMAH UNIK
-  // =========================
-
-  const houses =
-    new Set();
-
-
-  if (Array.isArray(data)) {
-
-    data.forEach(function(voter) {
-
-      const rumah =
-        String(
-          voter['No. Rumah'] || ''
-        ).trim();
-
-
-      if (rumah) {
-
-        houses.add(rumah);
-
-      }
-
-    });
-
-  }
-
-
-  houseCount.textContent =
-    houses.size;
 
 }
 
