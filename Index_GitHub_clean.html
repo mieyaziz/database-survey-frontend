@@ -1,0 +1,8805 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+  <base target="_top">
+
+<script>
+const GITHUB_API_URL = 'https://script.google.com/macros/s/AKfycby6Df6Wh78LVAXLMp-lzOk7S0794xSWtr1_YJMjB8L76yFsgePs35-tBcJt8RVYAwNY/exec';
+const GITHUB_PAGES_URL = 'https://miyazizi.github.io/database-survey-frontend/';
+
+function getSurveyToken_() {
+  return localStorage.getItem('survey_token') || localStorage.getItem('BRISK_AUTH_TOKEN') || '';
+}
+
+window.loginToken = getSurveyToken_();
+
+function githubJsonpRequest_(action, params, success, failure) {
+  const token = getSurveyToken_();
+  const query = new URLSearchParams();
+  query.set('action', action);
+  if (token) query.set('token', token);
+  Object.keys(params || {}).forEach(function(key) {
+    const value = params[key];
+    if (value === undefined || value === null) return;
+    query.set(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+  });
+  const callbackName = '__surveyApiCallback_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+  const script = document.createElement('script');
+  let finished = false;
+  function cleanup() {
+    finished = true;
+    try { delete window[callbackName]; } catch (e) {}
+    if (script.parentNode) script.parentNode.removeChild(script);
+  }
+  window[callbackName] = function(response) {
+    if (finished) return;
+    cleanup();
+    if (response && response.success === false) {
+      const error = new Error(response.message || 'API request gagal.');
+      error.response = response;
+      if (typeof failure === 'function') failure(error);
+      return;
+    }
+    if (typeof success === 'function') success(response);
+  };
+  script.onerror = function() {
+    if (finished) return;
+    cleanup();
+    if (typeof failure === 'function') failure(new Error('Gagal menghubungi Apps Script API.'));
+  };
+  script.src = GITHUB_API_URL + '?' + query.toString() + '&callback=' + encodeURIComponent(callbackName);
+  document.body.appendChild(script);
+}
+
+function createGoogleRunAdapter_() {
+  let successHandler = null;
+  let failureHandler = null;
+  const runner = {
+    withSuccessHandler: function(fn) { successHandler = fn; return runner; },
+    withFailureHandler: function(fn) { failureHandler = fn; return runner; }
+  };
+  return new Proxy(runner, {
+    get: function(target, property) {
+      if (property in target) return target[property];
+      return function() {
+        const args = Array.prototype.slice.call(arguments);
+        const method = String(property);
+        let action = method;
+        let params = {};
+        if (method === 'getDMListForUI') action = 'dms';
+        else if (method === 'getLocalityList') { action = 'localities'; params.kodDM = args[0] || ''; }
+        else if (method === 'searchVoters') { action = 'voters'; params.filters = args[0] || {}; }
+        else if (method === 'getHouseList') { action = 'houses'; params.kodDM = args[0] || ''; params.kodLokaliti = args[1] || ''; }
+        else if (method === 'getVotersByHouse') { action = 'house_voters'; params.kodDM = args[0] || ''; params.kodLokaliti = args[1] || ''; params.noRumah = args[2] || ''; }
+        else if (method === 'getLoginSession') action = 'session';
+        else if (method === 'logoutUser') action = 'logout';
+        else if (method === 'saveCula') { action = 'save_cula'; params = args[0] || {}; }
+        else if (method === 'saveEditDetail') { action = 'edit_detail'; params = args[0] || {}; }
+        else if (method === 'getWebAppUrl') { if (typeof successHandler === 'function') successHandler(GITHUB_PAGES_URL); return runner; }
+        else { if (typeof failureHandler === 'function') failureHandler(new Error('API method tidak disokong: ' + method)); return runner; }
+        githubJsonpRequest_(action, params, successHandler, failureHandler);
+        return runner;
+      };
+    }
+  });
+}
+
+Object.defineProperty(window, 'google', {
+  configurable: true,
+  value: { script: { get run() { return createGoogleRunAdapter_(); } } }
+});
+</script>
+<style>
+
+/* =====================================================
+   PREMIUM LOGOUT MODAL
+===================================================== */
+
+.logout-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 20px;
+
+  background: rgba(15, 23, 42, 0.65);
+
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+
+  opacity: 0;
+  visibility: hidden;
+
+  transition:
+    opacity 0.2s ease,
+    visibility 0.2s ease;
+}
+
+
+.logout-modal.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+
+.logout-modal-box {
+  width: 100%;
+  max-width: 400px;
+
+  background: #ffffff;
+
+  border-radius: 20px;
+
+  padding: 30px 28px 26px;
+
+  text-align: center;
+
+  box-shadow:
+    0 25px 60px rgba(0, 0, 0, 0.25);
+
+  transform:
+    translateY(15px)
+    scale(0.96);
+
+  transition:
+    transform 0.25s ease;
+}
+
+
+.logout-modal.show
+.logout-modal-box {
+
+  transform:
+    translateY(0)
+    scale(1);
+
+}
+
+
+/* ICON */
+
+.logout-modal-icon {
+
+  width: 64px;
+  height: 64px;
+
+  margin: 0 auto 18px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+
+  background: #fee2e2;
+
+  font-size: 30px;
+
+}
+
+
+/* TITLE */
+
+.logout-modal-title {
+
+  margin-bottom: 8px;
+
+  color: #0f172a;
+
+  font-size: 20px;
+  font-weight: 700;
+
+}
+
+
+/* TEXT */
+
+.logout-modal-text {
+
+  margin-bottom: 25px;
+
+  color: #64748b;
+
+  font-size: 14px;
+
+  line-height: 1.6;
+
+}
+
+
+/* BUTTON AREA */
+
+.logout-modal-actions {
+
+  display: flex;
+
+  gap: 10px;
+
+}
+
+
+/* BUTTON */
+
+.logout-modal-btn {
+
+  flex: 1;
+
+  border: 0;
+
+  border-radius: 10px;
+
+  padding: 12px 16px;
+
+  font-size: 14px;
+
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.15s ease,
+    opacity 0.15s ease;
+
+}
+
+
+.logout-modal-btn:hover {
+
+  transform: translateY(-1px);
+
+}
+
+
+.logout-modal-btn:active {
+
+  transform: translateY(0);
+
+}
+
+
+/* CANCEL */
+
+.logout-modal-cancel {
+
+  background: #e2e8f0;
+
+  color: #334155;
+
+}
+
+
+/* LOGOUT */
+
+.logout-modal-confirm {
+
+  background: #ef4444;
+
+  color: #ffffff;
+
+}
+
+
+/* MOBILE */
+
+@media (max-width: 480px) {
+
+  .logout-modal-box {
+
+    padding: 26px 20px 22px;
+
+    border-radius: 18px;
+
+  }
+
+
+  .logout-modal-actions {
+
+    flex-direction: column-reverse;
+
+  }
+
+}
+
+</style>
+
+
+<script>
+
+/* =====================================================
+   GET CURRENT USER
+===================================================== */
+
+function getCurrentUser() {
+
+  google.script.run
+
+    .withSuccessHandler(function(session) {
+
+      if (
+        !session ||
+        !session.loggedIn
+      ) {
+
+        return;
+
+      }
+
+
+      const username =
+        session.username || '';
+
+
+      const role =
+        session.role || '';
+
+
+      const userElement =
+        document.getElementById(
+          'currentUser'
+        );
+
+
+      const roleElement =
+        document.getElementById(
+          'currentRole'
+        );
+
+
+      if (userElement) {
+
+        userElement.textContent =
+          username;
+
+      }
+
+
+      if (roleElement) {
+
+        roleElement.textContent =
+          role;
+
+      }
+
+    })
+
+    .withFailureHandler(function(error) {
+
+      console.error(
+        'Gagal mendapatkan session:',
+        error
+      );
+
+    })
+
+    .getLoginSession();
+
+}
+
+
+/* =====================================================
+   LOGOUT MODAL
+===================================================== */
+
+function logoutUser() {
+
+  let modal =
+    document.getElementById(
+      'logoutModal'
+    );
+
+
+  /* -----------------------------------------------
+     CREATE MODAL JIKA BELUM WUJUD
+  ------------------------------------------------ */
+
+  if (!modal) {
+
+    modal =
+      document.createElement('div');
+
+    modal.id =
+      'logoutModal';
+
+    modal.className =
+      'logout-modal';
+
+
+    modal.innerHTML = `
+
+      <div class="logout-modal-box">
+
+        <div class="logout-modal-icon">
+          🚪
+        </div>
+
+        <div class="logout-modal-title">
+          Sahkan Logout
+        </div>
+
+        <div class="logout-modal-text">
+          Anda pasti mahu log keluar daripada sistem?
+        </div>
+
+        <div class="logout-modal-actions">
+
+          <button
+            type="button"
+            class="logout-modal-btn logout-modal-cancel"
+            onclick="closeLogoutModal()">
+
+            Batal
+
+          </button>
+
+
+          <button
+            type="button"
+            class="logout-modal-btn logout-modal-confirm"
+            onclick="confirmLogout()">
+
+            Log Keluar
+
+          </button>
+
+        </div>
+
+      </div>
+
+    `;
+
+
+    document.body.appendChild(
+      modal
+    );
+
+
+    /* Klik luar popup = tutup */
+
+    modal.addEventListener(
+      'click',
+      function(event) {
+
+        if (
+          event.target === modal
+        ) {
+
+          closeLogoutModal();
+
+        }
+
+      }
+    );
+
+  }
+
+
+  requestAnimationFrame(function() {
+
+    modal.classList.add(
+      'show'
+    );
+
+  });
+
+}
+
+
+/* =====================================================
+   CLOSE LOGOUT MODAL
+===================================================== */
+
+function closeLogoutModal() {
+
+  const modal =
+    document.getElementById(
+      'logoutModal'
+    );
+
+
+  if (!modal) {
+
+    return;
+
+  }
+
+
+  modal.classList.remove(
+    'show'
+  );
+
+}
+
+
+/* =====================================================
+   CONFIRM LOGOUT
+===================================================== */
+
+function confirmLogout() {
+
+  const modal =
+    document.getElementById(
+      'logoutModal'
+    );
+
+  if (modal) {
+    modal.classList.remove(
+      'show'
+    );
+  }
+
+  google.script.run
+    .withSuccessHandler(function() {
+      localStorage.removeItem('survey_token');
+      localStorage.removeItem('BRISK_AUTH_TOKEN');
+      window.top.location.href = GITHUB_PAGES_URL;
+    })
+    .withFailureHandler(function(error) {
+      console.error(error);
+      showPremiumNotification(
+        'error',
+        'Gagal log keluar. Sila cuba lagi.'
+      );
+    })
+    .logoutUser();
+
+}
+
+
+
+/* =====================================================
+   HOME
+===================================================== */
+
+function goHome() {
+
+  window.top.location.href = GITHUB_PAGES_URL;
+
+}
+
+
+/* =====================================================
+   PREMIUM NOTIFICATION
+===================================================== */
+
+function showPremiumNotification(
+  type,
+  message
+) {
+
+  /*
+   * Buang notification lama
+   */
+
+  const oldNotification =
+    document.querySelector(
+      '.premium-notification'
+    );
+
+
+  if (oldNotification) {
+
+    oldNotification.remove();
+
+  }
+
+
+  const notification =
+    document.createElement(
+      'div'
+    );
+
+
+  notification.className =
+    'premium-notification ' +
+    (type || 'success');
+
+
+  const icon =
+    type === 'error'
+      ? '✕'
+      : '✓';
+
+
+  const title =
+    type === 'error'
+      ? 'Tidak Berjaya'
+      : 'Berjaya';
+
+
+  notification.innerHTML = `
+
+    <div class="premium-notification-icon">
+      ${icon}
+    </div>
+
+    <div class="premium-notification-content">
+
+      <div class="premium-notification-title">
+        ${title}
+      </div>
+
+      <div class="premium-notification-message">
+        ${message}
+      </div>
+
+    </div>
+
+    <button
+      type="button"
+      class="premium-notification-close"
+      onclick="this.parentElement.remove()">
+
+      ✕
+
+    </button>
+
+  `;
+
+
+  document.body.appendChild(
+    notification
+  );
+
+
+  /*
+   * Animasi masuk
+   */
+
+  requestAnimationFrame(function() {
+
+    notification.classList.add(
+      'show'
+    );
+
+  });
+
+
+  /*
+   * Auto tutup selepas 4 saat
+   */
+
+  setTimeout(function() {
+
+    if (
+      notification &&
+      notification.parentElement
+    ) {
+
+      notification.classList.remove(
+        'show'
+      );
+
+
+      setTimeout(function() {
+
+        if (
+          notification &&
+          notification.parentElement
+        ) {
+
+          notification.remove();
+
+        }
+
+      }, 250);
+
+    }
+
+  }, 4000);
+
+}
+
+</script>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Survey System</title>
+
+  <style>
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f6f9;
+      color: #1f2937;
+    }
+
+    /* =========================
+       HEADER
+    ========================= */
+
+    .header {
+      background: #111827;
+      color: white;
+      padding: 18px 24px;
+    }
+
+    .header-inner {
+      max-width: 1200px;
+      margin: auto;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 22px;
+    }
+
+    .header p {
+      margin: 5px 0 0;
+      font-size: 13px;
+      opacity: 0.75;
+    }
+
+
+    /* =========================
+       CONTAINER
+    ========================= */
+
+    .container {
+      max-width: 1200px;
+      margin: auto;
+      padding: 20px;
+    }
+
+
+    /* =========================
+       CARD
+    ========================= */
+
+    .card {
+      background: white;
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+      margin-bottom: 20px;
+    }
+
+
+    /* =========================
+       FORM
+    ========================= */
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 13px;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+
+    select,
+    input {
+      width: 100%;
+      padding: 11px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      background: white;
+      font-size: 14px;
+    }
+
+    select:focus,
+    input:focus {
+      outline: none;
+      border-color: #2563eb;
+    }
+
+
+    /* =========================
+       SEARCH
+    ========================= */
+
+    .search-box {
+      margin-top: 16px;
+    }
+
+
+    /* =========================
+       TITLE
+    ========================= */
+
+    .section-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 15px;
+    }
+
+
+    /* =========================
+       VOTER LIST
+    ========================= */
+
+    .voter-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .voter {
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 14px;
+      background: #fafafa;
+    }
+
+    .voter-name {
+      font-weight: bold;
+      font-size: 15px;
+    }
+
+    .voter-info {
+      margin-top: 5px;
+      font-size: 13px;
+      color: #6b7280;
+    }
+
+
+    /* =========================
+       EMPTY
+    ========================= */
+
+    .empty {
+      text-align: center;
+      padding: 30px;
+      color: #6b7280;
+    }
+
+
+    /* =========================
+       MOBILE
+    ========================= */
+
+    @media (max-width: 700px) {
+
+      .header {
+        padding: 15px;
+      }
+
+      .header h1 {
+        font-size: 19px;
+      }
+
+      .container {
+        padding: 12px;
+      }
+
+      .card {
+        padding: 15px;
+        border-radius: 12px;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+
+      select,
+      input {
+        padding: 13px;
+        font-size: 15px;
+      }
+
+      .voter {
+        padding: 13px;
+      }
+
+    }
+
+    .button-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.btn-search,
+.btn-reset {
+  border: none;
+  border-radius: 8px;
+  padding: 11px 18px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.btn-search {
+  background: #2563eb;
+  color: white;
+}
+
+.btn-reset {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.btn-search:hover {
+  opacity: 0.9;
+}
+
+.age-row {
+  margin-top: 16px;
+}
+
+@media (max-width: 700px) {
+
+  .button-row {
+    flex-direction: column;
+  }
+
+  .btn-search,
+  .btn-reset {
+    width: 100%;
+    padding: 13px;
+  }
+
+}
+
+/* =========================
+   PREMIUM SURVEY FILTER
+========================= */
+
+.filter-card {
+
+  margin-bottom: 18px;
+
+  padding: 20px;
+
+  border-radius: 20px;
+
+  background: rgba(255, 255, 255, 0.96);
+
+  border: 1px solid rgba(15, 23, 42, 0.07);
+
+  box-shadow:
+    0 8px 25px rgba(15, 23, 42, 0.06);
+
+}
+
+
+/* =========================
+   FILTER TITLE
+========================= */
+
+.filter-card .section-title {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 8px;
+
+  margin-bottom: 18px;
+
+  font-size: 16px;
+
+  font-weight: 900;
+
+  color: #111827;
+
+}
+
+
+/* =========================
+   FIELD
+========================= */
+
+.filter-card .field {
+
+  margin-bottom: 14px;
+
+}
+
+
+.filter-card .field label {
+
+  display: block;
+
+  margin-bottom: 6px;
+
+  font-size: 11px;
+
+  font-weight: 800;
+
+  letter-spacing: 0.4px;
+
+  color: #64748b;
+
+}
+
+
+/* =========================
+   SELECT + INPUT
+========================= */
+
+.filter-card select,
+.filter-card input {
+
+  width: 100%;
+
+  min-height: 42px;
+
+  padding: 9px 12px;
+
+  border-radius: 12px;
+
+  border: 1px solid #e2e8f0;
+
+  background: #f8fafc;
+
+  color: #1e293b;
+
+  font-size: 13px;
+
+  font-weight: 600;
+
+  outline: none;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+
+}
+
+
+.filter-card select:focus,
+.filter-card input:focus {
+
+  background: #ffffff;
+
+  border-color: #94a3b8;
+
+  box-shadow:
+    0 0 0 3px rgba(148, 163, 184, 0.16);
+
+}
+
+
+/* =========================
+   AGE
+========================= */
+
+.age-row {
+
+  margin-top: 5px;
+
+}
+
+
+/* =========================
+   BUTTON ROW
+========================= */
+
+.filter-card .button-row {
+
+  margin-top: 5px;
+
+}
+
+
+.filter-card .btn-reset {
+
+  width: 100%;
+
+  min-height: 42px;
+
+  border: none;
+
+  border-radius: 12px;
+
+  background: #f1f5f9;
+
+  color: #334155;
+
+  font-size: 11px;
+
+  font-weight: 900;
+
+  letter-spacing: 0.3px;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.15s ease,
+    background 0.15s ease;
+
+}
+
+
+.filter-card .btn-reset:hover {
+
+  background: #e2e8f0;
+
+  transform: translateY(-1px);
+
+}
+
+
+/* =========================
+   MOBILE
+========================= */
+
+@media (max-width: 600px) {
+
+  .filter-card {
+
+    padding: 16px;
+
+    border-radius: 17px;
+
+  }
+
+}
+
+/* =========================
+   PREMIUM SUMMARY
+========================= */
+
+.summary-card {
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 14px;
+
+  margin-bottom: 18px;
+
+}
+
+
+.summary-item {
+
+  position: relative;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 14px;
+
+  min-height: 76px;
+
+  padding: 16px 18px;
+
+  background: linear-gradient(
+    135deg,
+    #ffffff,
+    #f8fafc
+  );
+
+  border-radius: 18px;
+
+  border: 1px solid #e5e7eb;
+
+  box-shadow:
+    0 6px 18px rgba(15, 23, 42, 0.06);
+
+  overflow: hidden;
+
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+
+}
+
+
+.summary-item::after {
+
+  content: '';
+
+  position: absolute;
+
+  right: -25px;
+
+  bottom: -30px;
+
+  width: 90px;
+
+  height: 90px;
+
+  border-radius: 50%;
+
+  background: rgba(148, 163, 184, 0.08);
+
+}
+
+
+.summary-item:hover {
+
+  transform: translateY(-2px);
+
+  box-shadow:
+    0 10px 25px rgba(15, 23, 42, 0.09);
+
+}
+
+
+/* =========================
+   ICON
+========================= */
+
+.summary-icon {
+
+  position: relative;
+
+  z-index: 1;
+
+  width: 50px;
+
+  height: 50px;
+
+  flex-shrink: 0;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  border-radius: 15px;
+
+  background: #f1f5f9;
+
+  font-size: 24px;
+
+  box-shadow:
+    inset 0 0 0 1px rgba(15, 23, 42, 0.04);
+
+}
+
+
+/* =========================
+   CONTENT
+========================= */
+
+.summary-content {
+
+  position: relative;
+
+  z-index: 1;
+
+  display: flex;
+
+  flex-direction: column;
+
+}
+
+
+.summary-content span {
+
+  font-size: 27px;
+
+  font-weight: 900;
+
+  line-height: 1;
+
+  color: #111827;
+
+  letter-spacing: -0.5px;
+
+}
+
+
+.summary-content small {
+
+  margin-top: 6px;
+
+  font-size: 10px;
+
+  font-weight: 800;
+
+  color: #64748b;
+
+  letter-spacing: 0.6px;
+
+}
+
+
+/* =========================
+   MOBILE
+========================= */
+
+@media (max-width: 600px) {
+
+  .summary-card {
+
+    gap: 10px;
+
+  }
+
+
+  .summary-item {
+
+    min-height: 68px;
+
+    padding: 13px 10px;
+
+    gap: 9px;
+
+    border-radius: 15px;
+
+  }
+
+
+  .summary-icon {
+
+    width: 40px;
+
+    height: 40px;
+
+    border-radius: 12px;
+
+    font-size: 20px;
+
+  }
+
+
+  .summary-content span {
+
+    font-size: 21px;
+
+  }
+
+
+  .summary-content small {
+
+    font-size: 8px;
+
+    letter-spacing: 0.3px;
+
+  }
+
+}
+
+
+/* =========================
+   VOTER CARD
+========================= */
+
+.voter {
+
+  background: #fff;
+
+  border: 1px solid #e5e7eb;
+
+  border-radius: 12px;
+
+  padding: 14px;
+
+  margin-bottom: 10px;
+
+  transition: 0.2s;
+
+}
+
+.voter:hover {
+
+  transform: translateY(-1px);
+
+  box-shadow:
+    0 4px 12px rgba(0,0,0,0.08);
+
+}
+
+
+.voter-name {
+
+  font-size: 16px;
+
+  font-weight: 700;
+
+  margin-bottom: 7px;
+
+}
+
+
+.voter-info {
+
+  font-size: 13px;
+
+  color: #6b7280;
+
+  line-height: 1.6;
+
+}
+
+
+.voter-house {
+
+  display: inline-block;
+
+  background: #eef2ff;
+
+  color: #3730a3;
+
+  padding: 4px 8px;
+
+  border-radius: 6px;
+
+  font-size: 12px;
+
+  font-weight: 700;
+
+  margin-bottom: 7px;
+
+}
+
+
+/* =========================
+   MOBILE
+========================= */
+
+@media (max-width: 700px) {
+
+  .form-grid {
+
+    grid-template-columns: 1fr;
+
+  }
+
+  .summary-card {
+
+    grid-template-columns: 1fr 1fr;
+
+  }
+
+  .summary-card > div {
+
+    padding: 14px 8px;
+
+  }
+
+}
+
+/* =========================
+   SEARCH PEMILIH
+========================= */
+
+.search-box {
+
+  display: flex;
+
+  gap: 8px;
+
+}
+
+.search-box input {
+
+  flex: 1;
+
+  padding: 12px 14px;
+
+  border: 1px solid #d1d5db;
+
+  border-radius: 10px;
+
+  font-size: 14px;
+
+  outline: none;
+
+}
+
+.search-box input:focus {
+
+  border-color: #6366f1;
+
+  box-shadow:
+    0 0 0 3px rgba(99,102,241,0.1);
+
+}
+
+.search-box button {
+
+  min-width: 45px;
+
+}
+
+.search-hint {
+
+  margin-top: 7px;
+
+  font-size: 11px;
+
+  color: #6b7280;
+
+}
+
+/* =====================================================
+   SURVEY HEADER - CLEAN
+===================================================== */
+
+.survey-header {
+
+  width: 100%;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  gap: 20px;
+
+  margin-bottom: 20px;
+
+}
+
+
+.survey-header-title {
+
+  flex: 1;
+
+  min-width: 0;
+
+}
+
+
+.survey-title {
+
+  margin: 0;
+
+  font-size: 25px;
+
+  font-weight: 900;
+
+  line-height: 1.2;
+
+  color: #111827;
+
+}
+
+
+.survey-subtitle {
+
+  margin-top: 6px;
+
+  font-size: 13px;
+
+  color: #64748b;
+
+}
+
+
+/* =========================
+   RIGHT SIDE
+========================= */
+
+.survey-header-actions {
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: flex-end;
+
+  gap: 8px;
+
+  flex-shrink: 0;
+
+}
+
+
+/* =========================
+   USER
+========================= */
+
+.survey-user {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 10px;
+
+  padding-left: 10px;
+
+  border-left: 1px solid #dbe2ea;
+
+}
+
+
+.survey-user-info {
+
+  text-align: right;
+
+  line-height: 1.15;
+
+}
+
+
+.survey-user-name {
+
+  font-size: 13px;
+
+  font-weight: 900;
+
+  color: #111827;
+
+  white-space: nowrap;
+
+}
+
+
+.survey-user-role {
+
+  margin-top: 4px;
+
+  font-size: 10px;
+
+  font-weight: 800;
+
+  color: #64748b;
+
+  letter-spacing: .5px;
+
+  white-space: nowrap;
+
+}
+
+
+/* =========================
+   BUTTON
+========================= */
+
+.survey-home-btn,
+.survey-logout-btn {
+
+  display: inline-flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  min-height: 40px;
+
+  padding: 0 14px;
+
+  border: none;
+
+  border-radius: 10px;
+
+  font-size: 12px;
+
+  font-weight: 800;
+
+  line-height: 1;
+
+  white-space: nowrap;
+
+  cursor: pointer;
+
+  transition:
+    transform .15s ease,
+    opacity .15s ease;
+
+}
+
+
+.survey-home-btn {
+
+  background: #111827;
+
+  color: white;
+
+}
+
+
+.survey-logout-btn {
+
+  background: #ef4444;
+
+  color: white;
+
+}
+
+
+.survey-home-btn:hover,
+.survey-logout-btn:hover {
+
+  transform: translateY(-1px);
+
+  opacity: .9;
+
+}
+
+
+/* =========================
+   MOBILE
+========================= */
+
+@media (max-width: 700px) {
+
+  .survey-header {
+
+    align-items: flex-start;
+
+    gap: 12px;
+
+  }
+
+
+  .survey-title {
+
+    font-size: 20px;
+
+  }
+
+
+  .survey-subtitle {
+
+    font-size: 12px;
+
+  }
+
+
+  .survey-header-actions {
+
+    gap: 6px;
+
+    flex-wrap: wrap;
+
+    justify-content: flex-end;
+
+  }
+
+
+  .survey-user-info {
+
+    display: none;
+
+  }
+
+
+  .survey-user {
+
+    padding-left: 6px;
+
+  }
+
+
+  .survey-home-btn,
+  .survey-logout-btn {
+
+    min-height: 38px;
+
+    padding: 0 11px;
+
+    font-size: 11px;
+
+  }
+
+}
+
+/* =====================================================
+   PREMIUM NOTIFICATION
+===================================================== */
+
+.premium-notification {
+
+  position: fixed;
+
+  top: 24px;
+  right: 24px;
+
+  z-index: 99999;
+
+  width: 380px;
+  max-width: calc(100vw - 32px);
+
+  display: flex;
+  align-items: center;
+
+  gap: 14px;
+
+  padding: 16px 18px;
+
+  background: rgba(255,255,255,.97);
+
+  border: 1px solid
+    rgba(226,232,240,.9);
+
+  border-radius: 16px;
+
+  box-shadow:
+    0 20px 50px
+    rgba(15,23,42,.22);
+
+  backdrop-filter: blur(14px);
+
+  opacity: 0;
+
+  transform:
+    translateY(-15px)
+    scale(.97);
+
+  transition:
+    opacity .25s ease,
+    transform .25s ease;
+
+}
+
+
+.premium-notification.show {
+
+  opacity: 1;
+
+  transform:
+    translateY(0)
+    scale(1);
+
+}
+
+
+.premium-notification-icon {
+
+  width: 42px;
+  height: 42px;
+
+  flex-shrink: 0;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+
+  background: #dcfce7;
+
+  color: #16a34a;
+
+  font-size: 19px;
+
+  font-weight: 900;
+
+}
+
+
+.premium-notification.error .premium-notification-icon {
+
+  background: #fee2e2;
+
+  color: #dc2626;
+
+}
+
+
+.premium-notification-content {
+
+  flex: 1;
+
+  min-width: 0;
+
+}
+
+
+.premium-notification-title {
+
+  font-size: 14px;
+
+  font-weight: 900;
+
+  color: #111827;
+
+  margin-bottom: 3px;
+
+}
+
+
+.premium-notification-message {
+
+  font-size: 12px;
+
+  line-height: 1.45;
+
+  color: #6b7280;
+
+}
+
+
+.premium-notification-close {
+
+  width: 28px;
+  height: 28px;
+
+  flex-shrink: 0;
+
+  border: none;
+
+  border-radius: 8px;
+
+  background: #f3f4f6;
+
+  color: #6b7280;
+
+  cursor: pointer;
+
+  font-size: 12px;
+
+}
+
+
+.premium-notification-close:hover {
+
+  background: #e5e7eb;
+
+  color: #111827;
+
+}
+
+
+@media (max-width: 600px) {
+
+  .premium-notification {
+
+    top: 15px;
+
+    left: 15px;
+    right: 15px;
+
+    width: auto;
+    max-width: none;
+
+  }
+
+}
+
+  
+
+/* =====================================================
+   SURVEY VOTER CARD — PREMIUM COMPACT 1 x 1
+   Adapted from Master Pemilih card layout
+===================================================== */
+.voter-list {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 12px !important;
+}
+
+.voter {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 16px 18px 14px 20px !important;
+  background: #ffffff !important;
+  border: 1px solid #dbe7df !important;
+  border-radius: 17px !important;
+  box-shadow: 0 5px 18px rgba(16, 185, 129, .07) !important;
+  overflow: hidden !important;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease !important;
+}
+
+.voter::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, #16a34a, #059669);
+}
+
+.voter:hover {
+  transform: translateY(-2px) !important;
+  border-color: #b7d9c4 !important;
+  box-shadow: 0 10px 25px rgba(16, 185, 129, .12) !important;
+}
+
+.voter-top {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 76px !important;
+  gap: 14px !important;
+  align-items: center !important;
+  margin: 0 !important;
+}
+
+.voter-name {
+  margin: 0 !important;
+  font-size: 17px !important;
+  line-height: 1.15 !important;
+  font-weight: 900 !important;
+  color: #0f172a !important;
+  letter-spacing: -.2px !important;
+  text-transform: uppercase !important;
+}
+
+.voter-meta {
+  margin-top: 5px !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  color: #64748b !important;
+}
+
+.voter-age {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 58px !important;
+  padding: 6px 8px !important;
+  border-radius: 14px !important;
+  background: linear-gradient(145deg, #f0fdf4, #ecfdf5) !important;
+  border: 1px solid #d7f0df !important;
+  color: #16a34a !important;
+  font-size: 29px !important;
+  line-height: .95 !important;
+  font-weight: 900 !important;
+  letter-spacing: -1px !important;
+}
+
+.voter-age span {
+  display: block !important;
+  margin-top: 5px !important;
+  color: #789184 !important;
+  font-size: 8px !important;
+  line-height: 1 !important;
+  font-weight: 900 !important;
+  letter-spacing: .5px !important;
+}
+
+.voter-divider {
+  height: 1px !important;
+  margin: 11px 0 9px !important;
+  background: #e7eee9 !important;
+}
+
+/* Compact badges / primary identity */
+.voter-badges {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 5px !important;
+  margin: 0 0 10px !important;
+}
+
+.voter-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  min-height: 22px !important;
+  padding: 4px 8px !important;
+  border-radius: 7px !important;
+  background: #f1f5f9 !important;
+  border: 1px solid #e5e7eb !important;
+  color: #475569 !important;
+  font-size: 9px !important;
+  line-height: 1 !important;
+  font-weight: 900 !important;
+  white-space: nowrap !important;
+}
+
+.voter-badge-green {
+  background: #dcfce7 !important;
+  border-color: #c7efd4 !important;
+  color: #15803d !important;
+}
+
+.voter-info-grid {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 7px !important;
+  margin: 0 !important;
+}
+
+.voter-info-item {
+  min-width: 0 !important;
+  min-height: 43px !important;
+  padding: 7px 9px !important;
+  background: #f8faf9 !important;
+  border: 1px solid #e8efea !important;
+  border-radius: 10px !important;
+}
+
+.voter-info-item.voter-info-full {
+  grid-column: span 2 !important;
+}
+
+.voter-info-item.voter-info-wide {
+  grid-column: 1 / -1 !important;
+}
+
+.info-label {
+  display: block !important;
+  margin-bottom: 3px !important;
+  color: #789184 !important;
+  font-size: 8px !important;
+  line-height: 1 !important;
+  font-weight: 900 !important;
+  letter-spacing: .35px !important;
+}
+
+.voter-info-item strong {
+  display: block !important;
+  overflow: hidden !important;
+  color: #1e293b !important;
+  font-size: 10px !important;
+  line-height: 1.2 !important;
+  font-weight: 800 !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.voter-section {
+  display: flex !important;
+  align-items: center !important;
+  gap: 9px !important;
+  margin-top: 8px !important;
+  padding: 8px 10px !important;
+  background: #f0fdf4 !important;
+  border: 1px solid #d9f3e1 !important;
+  border-radius: 10px !important;
+}
+
+.voter-section-title {
+  flex: 0 0 auto !important;
+  color: #15803d !important;
+  font-size: 9px !important;
+  font-weight: 900 !important;
+  letter-spacing: .25px !important;
+}
+
+.voter-cula {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 5px !important;
+  min-width: 0 !important;
+}
+
+.voter-catatan {
+  margin-top: 7px !important;
+  padding: 7px 9px !important;
+  background: #fffbeb !important;
+  border: 1px solid #f4e6bd !important;
+  border-radius: 9px !important;
+  color: #785c15 !important;
+  font-size: 9px !important;
+  font-weight: 700 !important;
+}
+
+.voter-action {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 8px !important;
+  margin-top: 9px !important;
+}
+
+.voter-action button {
+  min-height: 35px !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  letter-spacing: .25px !important;
+  cursor: pointer !important;
+  transition: transform .15s ease, box-shadow .15s ease !important;
+}
+
+.voter-action button:hover {
+  transform: translateY(-1px) !important;
+}
+
+.btn-edit-detail {
+  background: #f1f5f9 !important;
+  color: #334155 !important;
+  box-shadow: inset 0 0 0 1px #e2e8f0 !important;
+}
+
+.btn-keyin {
+  background: linear-gradient(135deg, #15803d, #059669) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 10px rgba(5, 150, 105, .18) !important;
+}
+
+@media (max-width: 900px) {
+  .voter-info-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .voter-info-item.voter-info-full {
+    grid-column: span 2 !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .voter {
+    padding: 13px 13px 12px 16px !important;
+    border-radius: 15px !important;
+  }
+  .voter-top {
+    grid-template-columns: minmax(0, 1fr) 65px !important;
+    gap: 9px !important;
+  }
+  .voter-name {
+    font-size: 15px !important;
+  }
+  .voter-age {
+    min-height: 52px !important;
+    font-size: 25px !important;
+  }
+  .voter-info-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  .voter-info-item.voter-info-full,
+  .voter-info-item.voter-info-wide {
+    grid-column: 1 / -1 !important;
+  }
+  .voter-action {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+  <!-- HEADER -->
+
+  <div class="header">
+
+    <div class="header-inner">
+
+      <h1>Survey System</h1>
+
+      <p>Database Survey</p>
+
+    </div>
+
+  </div>
+
+
+  <!-- MAIN -->
+
+  <div class="container">
+
+<!-- =========================
+     SURVEY HEADER
+========================== -->
+
+<div class="survey-header">
+
+  <div class="survey-header-title">
+
+    <div class="survey-title">
+      👥 Survey Pemilih
+    </div>
+
+    <div class="survey-subtitle">
+      Sistem carian & pengurusan data pemilih
+    </div>
+
+  </div>
+
+
+  <div class="survey-header-actions">
+
+    <button
+      type="button"
+      class="survey-home-btn"
+      onclick="goHome()">
+
+      🏠 Home
+
+    </button>
+
+
+    <div class="survey-user">
+
+      <div class="survey-user-info">
+
+        <div class="survey-user-name">
+          👤 <span id="currentUser">...</span>
+        </div>
+
+        <div class="survey-user-role">
+          <span id="currentRole">...</span>
+        </div>
+
+      </div>
+
+
+      <button
+        type="button"
+        class="survey-logout-btn"
+        onclick="logoutUser()">
+
+        🚪 Logout
+
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+<!-- =========================
+     FILTER
+========================== -->
+
+<div class="card filter-card">
+
+
+  <!-- MOBILE FILTER HEADER -->
+
+  <div
+    class="mobile-filter-header"
+    onclick="toggleMobileFilter()">
+
+    <div>
+
+      <span class="mobile-filter-icon">
+        🔎
+      </span>
+
+      <span class="mobile-filter-title">
+        Filter Pemilih
+      </span>
+
+    </div>
+
+
+    <span
+      id="mobileFilterArrow"
+      class="mobile-filter-arrow">
+
+      ▼
+
+    </span>
+
+  </div>
+
+
+  <!-- DESKTOP TITLE -->
+
+  <div class="section-title desktop-filter-title">
+
+    🔎 Filter Pemilih
+
+  </div>
+
+
+  <!-- FILTER CONTENT -->
+
+  <div
+    id="filterContent"
+    class="filter-content">
+
+
+    <!-- DM -->
+
+    <div class="field">
+
+      <label>DM</label>
+
+      <select
+        id="dmSelect"
+        onchange="loadLocalities()">
+
+        <option value="">
+          Pilih DM
+        </option>
+
+      </select>
+
+    </div>
+
+
+    <!-- LOKALITI -->
+
+    <div class="field">
+
+      <label>Lokaliti</label>
+
+      <select
+        id="localitySelect"
+        onchange="applyFilters()"
+        disabled>
+
+        <option value="">
+          Semua Lokaliti
+        </option>
+
+      </select>
+
+    </div>
+
+
+    <!-- KOD CULA -->
+
+    <div class="field">
+
+      <label>Kod Cula</label>
+
+      <select
+        id="kodCulaSelect"
+        onchange="applyFilters()">
+
+        <option value="">
+          Semua Kod Cula
+        </option>
+
+        <option value="A">
+          A — Atas Pagar
+        </option>
+
+        <option value="B">
+          B — Bulan
+        </option>
+
+        <option value="C">
+          C — Condong Bulan
+        </option>
+
+        <option value="D">
+          D — Dacing
+        </option>
+
+        <option value="E">
+          E — Condong Dacing
+        </option>
+
+        <option value="F">
+          F — Gagal Dikesan
+        </option>
+
+        <option value="G">
+          G — Mati
+        </option>
+
+        <option value="H">
+          H — Bulan Luar Kawasan
+        </option>
+
+        <option value="K">
+          K — Keadilan
+        </option>
+
+        <option value="M">
+          M — Bersatu
+        </option>
+
+        <option value="N">
+          N — Gerakan
+        </option>
+
+        <option value="P">
+          P — Amanah
+        </option>
+
+        <option value="R">
+          R — DAP
+        </option>
+
+        <option value="S">
+          S — Pejuang
+        </option>
+
+        <option value="T">
+          T — Ibubapa PASTI, SRI, SRITI, SMITI, Maahad
+        </option>
+
+        <option value="X">
+          X — Parti Bebas
+        </option>
+
+        <option value="Y">
+          Y — Parti MUDA
+        </option>
+
+        <option value="?">
+          ? — Belum Cula
+        </option>
+
+      </select>
+
+    </div>
+
+
+    <!-- UMUR + BULAN KELAHIRAN -->
+
+<div class="form-grid age-row">
+
+
+  <div class="field">
+
+    <label>Umur Dari</label>
+
+    <input
+      type="number"
+      id="ageFrom"
+      min="0"
+      max="120"
+      placeholder="Contoh: 18"
+      onchange="applyFilters()">
+
+  </div>
+
+
+  <div class="field">
+
+    <label>Umur Hingga</label>
+
+    <input
+      type="number"
+      id="ageTo"
+      min="0"
+      max="120"
+      placeholder="Contoh: 60"
+      onchange="applyFilters()">
+
+  </div>
+
+
+  <div class="field">
+
+    <label>Bulan Kelahiran</label>
+
+    <select
+      id="birthMonthSelect"
+      onchange="applyFilters()">
+
+      <option value="">
+        Semua Bulan
+      </option>
+
+      <option value="1">
+        Januari
+      </option>
+
+      <option value="2">
+        Februari
+      </option>
+
+      <option value="3">
+        Mac
+      </option>
+
+      <option value="4">
+        April
+      </option>
+
+      <option value="5">
+        Mei
+      </option>
+
+      <option value="6">
+        Jun
+      </option>
+
+      <option value="7">
+        Julai
+      </option>
+
+      <option value="8">
+        Ogos
+      </option>
+
+      <option value="9">
+        September
+      </option>
+
+      <option value="10">
+        Oktober
+      </option>
+
+      <option value="11">
+        November
+      </option>
+
+      <option value="12">
+        Disember
+      </option>
+
+    </select>
+
+  </div>
+
+
+</div>
+
+
+    <!-- JANTINA + BANGSA -->
+
+    <div class="form-grid">
+
+
+      <div class="field">
+
+        <label>Jantina</label>
+
+        <select
+          id="genderSelect"
+          onchange="applyFilters()">
+
+          <option value="">
+            Semua
+          </option>
+
+          <option value="L">
+            Lelaki
+          </option>
+
+          <option value="P">
+            Perempuan
+          </option>
+
+        </select>
+
+      </div>
+
+
+      <div class="field">
+
+        <label>Bangsa</label>
+
+        <select
+          id="raceSelect"
+          onchange="applyFilters()">
+
+          <option value="">
+            Semua
+          </option>
+
+          <option value="M">
+            Melayu
+          </option>
+
+          <option value="C">
+            Cina
+          </option>
+
+          <option value="I">
+            India
+          </option>
+
+        </select>
+
+      </div>
+
+
+    </div>
+
+
+    <!-- RESET -->
+
+    <div class="button-row">
+
+      <button
+        type="button"
+        class="btn-reset"
+        onclick="resetFilters()">
+
+        ↻ RESET FILTER
+
+      </button>
+
+    </div>
+
+
+  </div>
+
+</div>
+
+
+  <!-- =========================
+     SEARCH PEMILIH
+========================= -->
+
+<div class="card search-card">
+
+  <!-- MOBILE SEARCH HEADER -->
+
+  <div
+    class="mobile-search-header"
+    onclick="toggleMobileSearch()">
+
+    <div>
+
+      <span class="mobile-search-icon">
+        🔎
+      </span>
+
+      <span class="mobile-search-title">
+        Cari Pemilih
+      </span>
+
+    </div>
+
+    <span
+      id="mobileSearchArrow"
+      class="mobile-search-arrow">
+
+      ▼
+
+    </span>
+
+  </div>
+
+
+  <!-- DESKTOP TITLE -->
+
+  <div class="section-title desktop-search-title">
+
+    🔎 Cari Pemilih
+
+  </div>
+
+
+  <!-- SEARCH CONTENT -->
+
+  <div
+    id="searchContent"
+    class="search-content">
+
+    <div class="search-box">
+
+      <input
+        type="text"
+        id="voterSearch"
+        placeholder="Cari Nama / No. Siri..."
+        onkeydown="if(event.key === 'Enter') searchVoterText()">
+
+      <button
+        type="button"
+        class="btn-reset"
+        onclick="clearVoterSearch()">
+
+        ✕
+
+      </button>
+
+    </div>
+
+
+    <div class="search-hint">
+
+      Cari berdasarkan Nama Pemilih atau No. Siri
+
+    </div>
+
+  </div>
+
+</div>
+
+
+
+<!-- =========================
+     SUMMARY
+========================= -->
+
+<div id="summary" class="summary-card">
+
+  <div class="summary-item">
+
+    <div class="summary-icon">
+      👥
+    </div>
+
+    <div class="summary-content">
+
+      <span id="voterCount">
+        0
+      </span>
+
+      <small>
+        JUMLAH PEMILIH
+      </small>
+
+    </div>
+
+  </div>
+
+
+  <div class="summary-item">
+
+    <div class="summary-icon">
+      🏠
+    </div>
+
+    <div class="summary-content">
+
+      <span id="houseCount">
+        0
+      </span>
+
+      <small>
+        JUMLAH RUMAH
+      </small>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+
+    <!-- =========================
+         VOTER LIST
+    ========================== -->
+
+    <div class="card">
+
+      <div class="section-title voter-list-header">
+
+          <span>
+              👥 Senarai Pemilih
+         </span>
+
+         <button
+           type="button"
+           class="btn-print"
+           onclick="printVoterList()">
+
+             🖨️ PRINT / SAVE PDF
+
+         </button>
+
+     </div>
+
+
+      <div id="voterList">
+
+        <div class="empty">
+
+          Pilih DM untuk mula.
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+  </div>
+
+
+<script>
+
+// =========================
+// TOKEN LOGIN GLOBAL
+// =========================
+
+window.loginToken = getSurveyToken_();
+
+let voterSearchRequestId = 0;
+let textSearchRequestId = 0;
+let textSearchTimer = null;
+
+/* =========================
+   GLOBAL DATA
+========================= */
+
+let dmList = [];
+
+let localityList = [];
+
+let houseList = [];
+
+let currentVoters = [];
+
+
+/* =========================
+   LOAD DM
+========================= */
+
+function loadDM() {
+
+  const select =
+    document.getElementById('dmSelect');
+
+
+  if (!select) {
+
+    console.error(
+      '❌ dmSelect tidak dijumpai.'
+    );
+
+    return;
+
+  }
+
+
+  select.innerHTML =
+    '<option value="">⏳ Memuatkan DM...</option>';
+
+  select.disabled = true;
+
+
+  console.log(
+    '🔄 Mula load DM...'
+  );
+
+
+  google.script.run
+
+    .withSuccessHandler(function(data) {
+
+      console.log(
+        '✅ DATA DM DITERIMA:',
+        data
+      );
+
+
+      dmList =
+        Array.isArray(data)
+          ? data
+          : [];
+
+
+      select.innerHTML =
+        '<option value="">Pilih DM</option>';
+
+
+      if (dmList.length === 0) {
+
+        select.innerHTML =
+          '<option value="">Tiada DM dijumpai</option>';
+
+        select.disabled = false;
+
+        console.warn(
+          '⚠️ getDMListForUI() return kosong.'
+        );
+
+        return;
+
+      }
+
+
+      dmList.forEach(function(dm) {
+
+        if (
+          !dm ||
+          !dm.kodDM ||
+          !dm.namaDM
+        ) {
+
+          return;
+
+        }
+
+
+        const option =
+          document.createElement('option');
+
+
+        option.value =
+          String(
+            dm.kodDM
+          ).trim();
+
+
+        option.textContent =
+          String(
+            dm.kodDM
+          ).trim() +
+          ' - ' +
+          String(
+            dm.namaDM
+          ).trim();
+
+
+        select.appendChild(
+          option
+        );
+
+      });
+
+
+      select.disabled = false;
+
+
+      console.log(
+        '✅ DM berjaya dipaparkan:',
+        select.options.length - 1
+      );
+
+    })
+
+
+    .withFailureHandler(function(error) {
+
+      console.error(
+        '❌ GAGAL LOAD DM:',
+        error
+      );
+
+
+      select.innerHTML =
+        '<option value="">Gagal memuatkan DM</option>';
+
+      select.disabled = false;
+
+
+      const message =
+        error &&
+        error.message
+          ? error.message
+          : String(error);
+
+
+      showPremiumNotification(
+        'error',
+        'Gagal memuatkan DM: ' +
+        message
+      );
+
+    })
+
+
+    .getDMListForUI();
+
+}
+
+
+/* =========================
+   LOAD LOCALITY
+========================= */
+
+function loadLocalities() {
+
+  const kodDM =
+    document.getElementById('dmSelect').value;
+
+
+  const localitySelect =
+    document.getElementById('localitySelect');
+
+
+  localitySelect.innerHTML =
+    '<option value="">Sedang dimuatkan...</option>';
+
+  localitySelect.disabled = true;
+
+
+  if (!kodDM) {
+
+    localitySelect.innerHTML =
+      '<option value="">Semua Lokaliti</option>';
+
+
+    document.getElementById(
+      'voterList'
+    ).innerHTML =
+      '<div class="empty">Pilih DM untuk mula.</div>';
+
+
+    updateSummary([]);
+
+    return;
+
+  }
+
+
+  google.script.run
+
+    .withSuccessHandler(function(data) {
+
+      // Pastikan DM yang diterima
+      // masih DM yang sedang dipilih
+      const currentDM =
+        document.getElementById(
+          'dmSelect'
+        ).value;
+
+
+      if (currentDM !== kodDM) {
+
+        return;
+
+      }
+
+
+      localityList =
+        data || [];
+
+
+      localitySelect.innerHTML =
+        '<option value="">Semua Lokaliti</option>';
+
+
+      localityList.forEach(function(locality) {
+
+        const option =
+          document.createElement(
+            'option'
+          );
+
+
+        option.value =
+          locality.namaLokaliti;
+
+
+        option.textContent =
+          locality.namaLokaliti;
+
+
+        localitySelect.appendChild(
+          option
+        );
+
+      });
+
+
+      localitySelect.disabled = false;
+
+
+      // Hanya apply kalau DM masih sama
+      if (
+        document.getElementById(
+          'dmSelect'
+        ).value === kodDM
+      ) {
+
+        applyFilters();
+
+      }
+
+    })
+
+
+    .withFailureHandler(function(error) {
+
+      localitySelect.innerHTML =
+        '<option value="">Semua Lokaliti</option>';
+
+
+      localitySelect.disabled = false;
+
+
+      console.error(
+        'Gagal memuatkan lokaliti:',
+        error
+      );
+
+
+      showPremiumNotification(
+        'error',
+        'Gagal memuatkan lokaliti: ' +
+        (
+          error && error.message
+            ? error.message
+            : error
+        )
+      );
+
+    })
+
+
+    .getLocalityList(kodDM);
+
+}
+
+/* =====================================================
+   APPLY FILTERS
+===================================================== */
+
+function applyFilters() {
+
+  const kodDM =
+    document.getElementById(
+      'dmSelect'
+    ).value;
+
+
+  const namaLokaliti =
+    document.getElementById(
+      'localitySelect'
+    ).value;
+
+
+  const umurDari =
+    document.getElementById(
+      'ageFrom'
+    ).value;
+
+
+  const umurHingga =
+    document.getElementById(
+      'ageTo'
+    ).value;
+
+
+  const jantina =
+    document.getElementById(
+      'genderSelect'
+    ).value;
+
+
+  const bangsa =
+    document.getElementById(
+      'raceSelect'
+    ).value;
+
+
+  const kodCula =
+    document.getElementById(
+      'kodCulaSelect'
+    ).value;
+
+
+  const bulanLahir =
+    document.getElementById(
+      'birthMonthSelect'
+    ).value;
+
+
+  // =========================
+  // VALIDASI UMUR
+  // =========================
+
+  if (
+    umurDari !== '' &&
+    umurHingga !== '' &&
+    Number(umurDari) >
+    Number(umurHingga)
+  ) {
+
+    showPremiumNotification(
+      'error',
+      'Umur Dari tidak boleh lebih besar daripada Umur Hingga.'
+    );
+
+    return;
+
+  }
+
+
+  // =========================
+  // REQUEST ID
+  // =========================
+
+  voterSearchRequestId++;
+
+
+  const currentRequestId =
+    voterSearchRequestId;
+
+
+  // =========================
+  // PAPAR LOADING
+  // =========================
+
+  const voterList =
+    document.getElementById(
+      'voterList'
+    );
+
+
+  if (voterList) {
+
+    voterList.innerHTML =
+      '<div class="empty">🔄 Sedang menapis data...</div>';
+
+  }
+
+
+  // =========================
+  // FILTER
+  // =========================
+
+  const filters = {
+
+    kodDM:
+      kodDM,
+
+    namaLokaliti:
+      namaLokaliti,
+
+    kodCula:
+      kodCula,
+
+    umurDari:
+      umurDari,
+
+    umurHingga:
+      umurHingga,
+
+    bulanLahir:
+      bulanLahir,
+
+    jantina:
+      jantina,
+
+    bangsa:
+      bangsa
+
+  };
+
+
+  console.log(
+    'FILTER DIHANTAR:',
+    filters,
+    'REQUEST:',
+    currentRequestId
+  );
+
+
+  // =========================
+  // SEARCH
+  // =========================
+
+  google.script.run
+
+    .withSuccessHandler(function(data) {
+
+      // =========================
+      // ABAIKAN RESPONSE LAMA
+      // =========================
+
+      if (
+        currentRequestId !==
+        voterSearchRequestId
+      ) {
+
+        console.log(
+          'Response filter lama diabaikan:',
+          currentRequestId
+        );
+
+        return;
+
+      }
+
+
+      // =========================
+      // PAPAR DATA TERBARU
+      // =========================
+
+      displayVoters(
+        data || []
+      );
+
+    })
+
+
+    .withFailureHandler(function(error) {
+
+      // =========================
+      // ABAIKAN ERROR LAMA
+      // =========================
+
+      if (
+        currentRequestId !==
+        voterSearchRequestId
+      ) {
+
+        return;
+
+      }
+
+
+      console.error(
+        'Gagal menapis data:',
+        error
+      );
+
+
+      const errorMessage =
+        error && error.message
+          ? error.message
+          : error;
+
+
+      if (voterList) {
+
+        voterList.innerHTML =
+          '<div class="empty">❌ Ralat: ' +
+          errorMessage +
+          '</div>';
+
+      }
+
+
+      showPremiumNotification(
+        'error',
+        'Gagal menapis data: ' +
+        errorMessage
+      );
+
+    })
+
+
+    .searchVoters(
+      filters
+    );
+
+}
+
+/* =====================================================
+   SEARCH PEMILIH — DEBOUNCE + REQUEST PROTECTION
+===================================================== */
+
+function searchVoterText() {
+
+  // =========================
+  // BATALKAN TIMER LAMA
+  // =========================
+
+  clearTimeout(
+    textSearchTimer
+  );
+
+
+  // =========================
+  // BATALKAN REQUEST LAMA
+  // =========================
+
+  voterSearchRequestId++;
+
+
+  const currentRequestId =
+    voterSearchRequestId;
+
+
+  // =========================
+  // AMBIL KEYWORD
+  // =========================
+
+  const keyword =
+    document
+      .getElementById('voterSearch')
+      .value
+      .trim();
+
+
+  // =========================
+  // MINIMUM 2 AKSARA
+  // =========================
+
+  if (keyword.length < 2) {
+
+    return;
+
+  }
+
+
+  // =========================
+  // DEBOUNCE 400ms
+  // =========================
+
+  textSearchTimer =
+    setTimeout(function() {
+
+      performTextSearch(
+        keyword,
+        currentRequestId
+      );
+
+    }, 200);
+
+}
+
+/* =====================================================
+   EXECUTE TEXT SEARCH
+===================================================== */
+
+function performTextSearch(
+  keyword,
+  currentRequestId
+) {
+
+  // =========================
+  // AMBIL FILTER SEMASA
+  // =========================
+
+  const kodDM =
+    document.getElementById(
+      'dmSelect'
+    ).value;
+
+
+  const namaLokaliti =
+    document.getElementById(
+      'localitySelect'
+    ).value;
+
+
+  const umurDari =
+    document.getElementById(
+      'ageFrom'
+    ).value;
+
+
+  const umurHingga =
+    document.getElementById(
+      'ageTo'
+    ).value;
+
+
+  const jantina =
+    document.getElementById(
+      'genderSelect'
+    ).value;
+
+
+  const bangsa =
+    document.getElementById(
+      'raceSelect'
+    ).value;
+
+
+  // =========================
+  // FILTER
+  // =========================
+
+  const filters = {
+
+    kodDM:
+      kodDM,
+
+    namaLokaliti:
+      namaLokaliti,
+
+    umurDari:
+      umurDari,
+
+    umurHingga:
+      umurHingga,
+
+    jantina:
+      jantina,
+
+    bangsa:
+      bangsa,
+
+    keyword:
+      keyword
+
+  };
+
+
+  // =========================
+  // PAPAR LOADING
+  // =========================
+
+  const voterList =
+    document.getElementById(
+      'voterList'
+    );
+
+
+  if (voterList) {
+
+    voterList.innerHTML =
+      '<div class="empty">🔄 Sedang mencari pemilih...</div>';
+
+  }
+
+
+  // =========================
+  // SEARCH
+  // =========================
+
+  google.script.run
+
+    .withSuccessHandler(function(data) {
+
+      // =========================
+      // ABAIKAN RESPONSE LAMA
+      // =========================
+
+      if (
+        currentRequestId !==
+        voterSearchRequestId
+      ) {
+
+        console.log(
+          'Response carian lama diabaikan:',
+          currentRequestId
+        );
+
+        return;
+
+      }
+
+
+      // =========================
+      // PAPAR DATA TERBARU
+      // =========================
+
+      displayVoters(
+        data || []
+      );
+
+    })
+
+
+    .withFailureHandler(function(error) {
+
+      // =========================
+      // ABAIKAN ERROR LAMA
+      // =========================
+
+      if (
+        currentRequestId !==
+        voterSearchRequestId
+      ) {
+
+        return;
+
+      }
+
+
+      console.error(
+        'Gagal mencari pemilih:',
+        error
+      );
+
+
+      const errorMessage =
+        error && error.message
+          ? error.message
+          : error;
+
+
+      if (voterList) {
+
+        voterList.innerHTML =
+          '<div class="empty">❌ Ralat: ' +
+          errorMessage +
+          '</div>';
+
+      }
+
+
+      showPremiumNotification(
+        'error',
+        'Gagal mencari pemilih: ' +
+        errorMessage
+      );
+
+    })
+
+
+    .searchVoters(
+      filters
+    );
+
+}
+
+function displayVoters(data) {
+
+  const voterList =
+    document.getElementById('voterList');
+
+
+  // =========================
+  // DATA KOSONG
+  // =========================
+
+  if (!data || data.length === 0) {
+
+    currentVoters = [];
+
+    voterList.innerHTML =
+      '<div class="empty">Tiada pemilih dijumpai.</div>';
+
+    updateSummary([]);
+
+    return;
+
+  }
+
+
+  // =========================
+  // SIMPAN DATA SEMASA
+  // =========================
+
+  currentVoters = data;
+
+
+  voterList.innerHTML = '';
+
+
+  data.forEach(function(voter) {
+
+    const div =
+      document.createElement('div');
+
+    div.className =
+      'voter';
+
+
+    // =========================
+    // TELEFON
+    // =========================
+
+    const telefon =
+      String(
+        voter['Tel. Bimbit'] || ''
+      ).trim();
+
+
+    // =========================
+    // CULA
+    // =========================
+
+    const culaHTML =
+      renderCulaBadges(
+        voter['Kod Cula']
+      );
+
+
+    // =========================
+    // CATATAN
+    // =========================
+
+    const catatanHTML =
+      voter['Catatan']
+        ? `
+          <div class="voter-catatan">
+            📝 ${voter['Catatan']}
+          </div>
+        `
+        : '';
+
+
+    // =========================
+    // CARD
+    // =========================
+
+    div.innerHTML = `
+
+      <div class="voter-top">
+
+        <div>
+          <div class="voter-name">
+            ${voter['Nama Pemilih'] || '-'}
+          </div>
+
+          <div class="voter-meta">
+            No. K/P: ${voter['No. K/P (Baru)'] || '-'}
+          </div>
+        </div>
+
+        <div class="voter-age">
+          ${voter['umur'] || '-'}
+          <span>TAHUN</span>
+        </div>
+
+      </div>
+
+      <div class="voter-divider"></div>
+
+      <div class="voter-badges">
+        <span class="voter-badge">DM ${voter['Kod DM'] || voter['DM'] || '-'}</span>
+        <span class="voter-badge">Lokaliti ${voter['Kod Lokaliti'] || voter['Lokaliti'] || '-'}</span>
+        <span class="voter-badge">Rumah ${voter['No. Rumah'] || '-'}</span>
+        <span class="voter-badge">${voter['Jantina'] || '-'}</span>
+        <span class="voter-badge">${voter['Bangsa'] || '-'}</span>
+        ${culaHTML ? `<span class="voter-badge voter-badge-green">Cula ✓</span>` : ''}
+      </div>
+
+      <div class="voter-info-grid">
+
+        <div class="voter-info-item">
+          <span class="info-label">🏠 RUMAH</span>
+          <strong>${voter['No. Rumah'] || '-'}</strong>
+        </div>
+
+        <div class="voter-info-item">
+          <span class="info-label">📋 SIRI</span>
+          <strong>${voter['No. Siri'] || '-'}</strong>
+        </div>
+
+        <div class="voter-info-item">
+          <span class="info-label">📍 LOKALITI</span>
+          <strong>${voter['Nama Lokaliti'] || '-'}</strong>
+        </div>
+
+        <div class="voter-info-item">
+          <span class="info-label">📱 TELEFON</span>
+          <strong>${telefon || '-'}</strong>
+        </div>
+
+        <div class="voter-info-item voter-info-wide">
+          <span class="info-label">🏠 ALAMAT KEDIAMAN</span>
+          <strong>${voter['Alamat Kediaman'] || '-'}</strong>
+        </div>
+
+        <div class="voter-info-item voter-info-full">
+          <span class="info-label">🪪 ALAMAT K/P</span>
+          <strong>${voter['Alamat K/P'] || '-'}</strong>
+        </div>
+
+        <div class="voter-info-item">
+          <span class="info-label">🎂 TARIKH LAHIR</span>
+          <strong>${voter['Tarikh Lahir'] || '-'}</strong>
+        </div>
+
+        <div class="voter-info-item">
+          <span class="info-label">🕒 TARIKH CULAAN</span>
+          <strong>${voter['Tarikh Culaan'] || '-'}</strong>
+        </div>
+
+        <div class="voter-info-item">
+          <span class="info-label">👤 DICULA OLEH</span>
+          <strong>${voter['Dicula Oleh'] || '-'}</strong>
+        </div>
+
+      </div>
+
+      ${
+        culaHTML
+          ? `
+            <div class="voter-section">
+              <div class="voter-section-title">🏷️ KECENDERUNGAN</div>
+              <div class="voter-cula">${culaHTML}</div>
+            </div>
+          `
+          : ''
+      }
+
+      ${catatanHTML}
+
+      <div class="voter-action">
+
+        <button
+          type="button"
+          class="btn-edit-detail"
+          onclick='openEditDetail(${JSON.stringify(voter)})'>
+          ✏️ EDIT DETAIL
+        </button>
+
+        <button
+          type="button"
+          class="btn-keyin"
+          data-no-siri="${voter['No. Siri']}"
+          onclick='openCula(${JSON.stringify(voter)})'>
+          🏷️ KEY IN CULA
+        </button>
+
+      </div>
+
+    `;
+
+    voterList.appendChild(div);
+
+  });
+
+
+  // =========================
+  // UPDATE SUMMARY
+  // =========================
+
+  updateSummary(data);
+
+}
+
+function printVoterList() {
+
+  // =========================
+  // SEMAK DATA SEMASA
+  // =========================
+
+  const voters =
+    Array.isArray(currentVoters)
+      ? currentVoters
+      : [];
+
+  if (!voters.length) {
+
+    showPremiumNotification(
+      'error',
+      'Tiada senarai pemilih untuk dicetak.'
+    );
+
+    return;
+
+  }
+
+
+  // =========================
+  // FILTER SEMASA
+  // =========================
+
+  const dmSelect =
+    document.getElementById('dmSelect');
+
+  const dmValue =
+    dmSelect?.value || '';
+
+  const dmName =
+    dmSelect?.selectedOptions[0]?.text || '';
+
+  const dm =
+    dmName || dmValue || 'KESELURUHAN';
+
+
+  const lokaliti =
+    document.getElementById('localitySelect')
+      ?.selectedOptions[0]?.text ||
+    'Semua Lokaliti';
+
+
+  const kodCula =
+    document.getElementById('kodCulaSelect')
+      ?.selectedOptions[0]?.text ||
+    'Semua Kod Cula';
+
+
+  const umurDari =
+    document.getElementById('ageFrom')?.value || '';
+
+
+  const umurHingga =
+    document.getElementById('ageTo')?.value || '';
+
+
+  const bulanLahir =
+    document.getElementById('birthMonthSelect')
+      ?.selectedOptions[0]?.text ||
+    'Semua Bulan';
+
+
+  const jantina =
+    document.getElementById('genderSelect')
+      ?.selectedOptions[0]?.text ||
+    'Semua';
+
+
+  const bangsa =
+    document.getElementById('raceSelect')
+      ?.selectedOptions[0]?.text ||
+    'Semua';
+
+
+  // =========================
+  // FORMAT UMUR
+  // =========================
+
+  let umurText =
+    'Semua Umur';
+
+
+  if (umurDari && umurHingga) {
+
+    umurText =
+      umurDari +
+      ' - ' +
+      umurHingga +
+      ' Tahun';
+
+  }
+
+  else if (umurDari) {
+
+    umurText =
+      umurDari +
+      ' Tahun ke atas';
+
+  }
+
+  else if (umurHingga) {
+
+    umurText =
+      umurHingga +
+      ' Tahun ke bawah';
+
+  }
+
+
+  // =========================
+  // ESCAPE HTML
+  // =========================
+
+  function escapeHTML(value) {
+
+    return String(
+      value == null ? '' : value
+    )
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+
+  }
+
+
+  // =========================
+  // FORMAT TARIKH
+  // =========================
+
+  function formatDate(value) {
+
+    if (!value) {
+      return '-';
+    }
+
+    const date =
+      new Date(value);
+
+    if (isNaN(date.getTime())) {
+      return String(value);
+    }
+
+    return date.toLocaleString(
+      'ms-MY',
+      {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }
+    );
+
+  }
+
+
+  // =========================
+  // BUKA PRINT WINDOW
+  // =========================
+
+  const printWindow =
+    window.open(
+      '',
+      '_blank'
+    );
+
+
+  if (!printWindow) {
+
+    showPremiumNotification(
+      'error',
+      'Popup disekat oleh browser. Sila benarkan popup untuk laman ini.'
+    );
+
+    return;
+
+  }
+
+
+  // =========================
+  // BINA ROW
+  // =========================
+
+  let tableRows = '';
+
+
+  voters.forEach(
+    function(voter, index) {
+
+      const nama =
+        voter['Nama Pemilih'] ||
+        '-';
+
+
+      const noKP =
+        voter['No. K/P (Baru)'] ||
+        '-';     
+
+
+      const umur =
+        voter['umur'] ||
+        '-';
+
+
+      const jantinaValue =
+        voter['Jantina'] ||
+        '-';
+
+
+      const bangsaValue =
+        voter['Bangsa'] ||
+        '-';
+
+
+      const rumah =
+        voter['No. Rumah'] ||
+        '-';    
+      
+      const alamatKediaman =
+        voter['Alamat Kediaman'] ||
+        '-';
+
+
+      const kodCulaValue =
+        voter['Kod Cula'] ||
+        '-';
+
+
+      const tarikhCulaan =
+        voter['Tarikh Culaan']
+          ? formatDate(
+              voter['Tarikh Culaan']
+            )
+          : '-';
+
+
+      tableRows += `
+
+        <tr>
+
+          <td class="bil">
+            ${index + 1}
+          </td>      
+
+          <td class="nama">
+            ${escapeHTML(nama)}
+          </td>
+
+          <td class="kp">
+            ${escapeHTML(noKP)}
+          </td>
+
+          <td class="umur">
+            ${escapeHTML(umur)}
+          </td>
+
+          <td>
+            ${escapeHTML(jantinaValue)}
+          </td>
+
+          <td>
+            ${escapeHTML(bangsaValue)}
+          </td>
+
+          <td>
+            ${escapeHTML(rumah)}
+          </td>
+
+          <td class="alamat">
+            ${escapeHTML(alamatKediaman)}
+          </td>
+
+          <td class="cula">
+            ${escapeHTML(kodCulaValue)}
+          </td>
+
+          <td>
+            ${escapeHTML(tarikhCulaan)}
+          </td>
+
+        </tr>
+
+      `;
+
+    }
+  );
+
+
+  // =========================
+  // TARIKH CETAK
+  // =========================
+
+  const tarikhCetak =
+    new Date().toLocaleString(
+      'ms-MY',
+      {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }
+    );
+
+
+  // =========================
+  // HTML PRINT
+  // =========================
+
+  printWindow.document.open();
+
+
+  printWindow.document.write(`
+
+    <!DOCTYPE html>
+
+    <html>
+
+    <head>
+
+      <meta charset="UTF-8">
+
+      <title>
+        Senarai Pemilih - ${escapeHTML(dm)}
+      </title>
+
+
+      <style>
+
+        @page {
+
+          size: A4 landscape;
+
+          margin:
+            9mm 8mm 22mm 8mm;
+
+        }
+
+
+        * {
+
+          box-sizing:
+            border-box;
+
+        }
+
+
+        html,
+        body {
+
+          margin:
+            0;
+
+          padding:
+            0;
+
+        }
+
+
+        body {
+
+          font-family:
+            Arial,
+            Helvetica,
+            sans-serif;
+
+          color:
+            #111827;
+
+          font-size:
+            8px;
+
+        }
+
+
+        /* =========================
+           HEADER
+        ========================= */
+
+        .print-header {
+
+          border-bottom:
+            2px solid #111827;
+
+          padding-bottom:
+            6px;
+
+          margin-bottom:
+            7px;
+
+        }
+
+
+        .print-title {
+
+          font-size:
+            16px;
+
+          font-weight:
+            900;
+
+          margin-bottom:
+            2px;
+
+        }
+
+
+        .print-subtitle {
+
+          font-size:
+            8px;
+
+          font-weight:
+            700;
+
+          color:
+            #475569;
+
+        }
+
+
+        .print-meta {
+
+          margin-top:
+            5px;
+
+          display:
+            flex;
+
+          flex-wrap:
+            wrap;
+
+          gap:
+            12px;
+
+          font-size:
+            7px;
+
+          color:
+            #334155;
+
+        }
+
+
+        .print-meta strong {
+
+          color:
+            #111827;
+
+        }
+
+
+        /* =========================
+           SUMMARY
+        ========================= */
+
+        .print-summary {
+
+          display:
+            flex;
+
+          justify-content:
+            space-between;
+
+          align-items:
+            center;
+
+          margin-bottom:
+            6px;
+
+          padding:
+            5px 7px;
+
+          border:
+            1px solid #cbd5e1;
+
+          background:
+            #f8fafc;
+
+        }
+
+
+        .print-total {
+
+          font-size:
+            8px;
+
+          font-weight:
+            700;
+
+        }
+
+
+        .print-total strong {
+
+          font-size:
+            13px;
+
+          margin-left:
+            4px;
+
+        }
+
+
+        .print-date {
+
+          font-size:
+            7px;
+
+          color:
+            #64748b;
+
+        }
+
+
+        /* =========================
+           TABLE
+        ========================= */
+
+        table {
+
+          width:
+            100%;
+
+          border-collapse:
+            collapse;
+
+          table-layout:
+            fixed;
+
+        }
+
+
+        thead {
+
+          display:
+            table-header-group;
+
+        }
+
+
+        th {
+
+          background:
+            #111827;
+
+          color:
+            #ffffff;
+
+          border:
+            1px solid #111827;
+
+          padding:
+            4px 3px;
+
+          font-size:
+            7px;
+
+          font-weight:
+            800;
+
+          text-align:
+            center;
+
+          vertical-align:
+            middle;
+
+        }
+
+
+        td {
+
+          border:
+            1px solid #cbd5e1;
+
+          padding:
+            3px;
+
+          font-size:
+            7px;
+
+          line-height:
+            1.15;
+
+          vertical-align:
+            middle;
+
+          overflow-wrap:
+            break-word;
+
+        }
+
+
+        tbody tr:nth-child(even) {
+
+          background:
+            #f8fafc;
+
+        }
+
+
+        tbody tr {
+
+          page-break-inside:
+            avoid;
+
+          break-inside:
+            avoid;
+
+        }
+
+
+        /* =========================
+        COLUMN WIDTH
+        ========================= */
+
+th:nth-child(1),
+td:nth-child(1) {
+  width: 3%;
+  text-align: center;
+}
+
+
+th:nth-child(2),
+td:nth-child(2) {
+  width: 23%;
+}
+
+
+th:nth-child(3),
+td:nth-child(3) {
+  width: 12%;
+  text-align: center;
+  white-space: nowrap;
+}
+
+
+th:nth-child(4),
+td:nth-child(4) {
+  width: 5%;
+  text-align: center;
+}
+
+
+th:nth-child(5),
+td:nth-child(5) {
+  width: 6%;
+  text-align: center;
+}
+
+
+th:nth-child(6),
+td:nth-child(6) {
+  width: 7%;
+  text-align: center;
+}
+
+
+th:nth-child(7),
+td:nth-child(7) {
+  width: 7%;
+  text-align: center;
+}
+
+
+th:nth-child(8),
+td:nth-child(8) {
+  width: 25%;
+}
+
+
+th:nth-child(9),
+td:nth-child(9) {
+  width: 6%;
+  text-align: center;
+}
+
+
+th:nth-child(10),
+td:nth-child(10) {
+  width: 6%;
+  text-align: center;
+  white-space: nowrap;
+}
+
+
+        .nama {
+
+          font-weight:
+            700;
+
+        }
+
+
+        .kp {
+
+          font-family:
+            "Courier New",
+            monospace;
+
+          font-weight:
+            700;
+
+          white-space:
+            nowrap;
+
+        }
+
+
+        .bil,
+        .umur,
+        .cula {
+
+          text-align:
+            center;
+
+        }
+
+
+        /* =========================
+   FOOTER
+========================= */
+
+.print-footer {
+
+  position: fixed;
+
+  bottom: 0mm;
+
+  left: 0;
+
+  right: 0;
+
+  text-align: center;
+
+  font-size: 7px;
+
+  line-height: 1.2;
+
+  color: #64748b;
+
+  z-index: 10;
+
+  pointer-events: none;
+
+}
+
+
+      </style>
+
+    </head>
+
+
+    <body>
+
+
+      <div class="print-header">
+
+        <div class="print-title">
+
+          SENARAI PEMILIH
+
+        </div>
+
+
+        <div class="print-subtitle">
+
+          P.136 TANGGA BATU
+
+        </div>
+
+
+        <div class="print-meta">
+
+          <span>
+            <strong>DAERAH MENGUNDI:</strong>
+            ${escapeHTML(dm)}
+          </span>
+
+          <span>
+            <strong>LOKALITI:</strong>
+            ${escapeHTML(lokaliti)}
+          </span>
+
+          <span>
+            <strong>KOD CULA:</strong>
+            ${escapeHTML(kodCula)}
+          </span>
+
+          <span>
+            <strong>UMUR:</strong>
+            ${escapeHTML(umurText)}
+          </span>
+
+          <span>
+            <strong>BULAN LAHIR:</strong>
+            ${escapeHTML(bulanLahir)}
+          </span>
+
+          <span>
+            <strong>JANTINA:</strong>
+            ${escapeHTML(jantina)}
+          </span>
+
+          <span>
+            <strong>BANGSA:</strong>
+            ${escapeHTML(bangsa)}
+          </span>
+
+        </div>
+
+      </div>
+
+
+      <div class="print-summary">
+
+        <div class="print-total">
+
+          JUMLAH PEMILIH:
+
+          <strong>
+            ${voters.length.toLocaleString('en-US')}
+          </strong>
+
+        </div>
+
+
+        <div class="print-date">
+
+          Dicetak:
+          ${escapeHTML(tarikhCetak)}
+
+        </div>
+
+      </div>
+
+
+      <table>
+
+        <thead>
+
+          <tr>
+
+            <th>BIL</th>      
+
+            <th>NAMA PEMILIH</th>
+
+            <th>NO. K/P</th>
+
+            <th>UMUR</th>
+
+            <th>JANTINA</th>
+
+            <th>BANGSA</th>
+
+            <th>NO. RUMAH</th>
+
+            <th>ALAMAT KEDIAMAN</th>
+
+            <th>KOD CULA</th>
+
+            <th>TARIKH CULAAN</th>
+
+          </tr>
+
+        </thead>
+
+
+        <tbody>
+
+          ${tableRows}
+
+        </tbody>
+
+      </table>
+
+
+      <div class="print-footer">
+
+        Sistem Pengurusan Pemilih • P.136 Tangga Batu
+
+      </div>
+
+
+    </body>
+
+    </html>
+
+  `);
+
+
+  printWindow.document.close();
+
+
+  // =========================
+  // PRINT
+  // =========================
+
+  setTimeout(
+    function() {
+
+      printWindow.focus();
+
+      printWindow.print();
+
+    },
+    500
+  );
+
+}
+
+function escapePrintHTML(value) {
+
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+
+}
+
+function updateSummary(data) {
+
+  const voterCount =
+    document.getElementById('voterCount');
+
+  const houseCount =
+    document.getElementById('houseCount');
+
+
+  if (!voterCount || !houseCount) {
+    return;
+  }
+
+
+  // =========================
+  // JUMLAH PEMILIH
+  // =========================
+
+  const totalVoters =
+    Array.isArray(data)
+      ? data.length
+      : 0;
+
+
+  voterCount.textContent =
+    totalVoters;
+
+
+  // =========================
+  // JUMLAH RUMAH UNIK
+  // =========================
+
+  const houses =
+    new Set();
+
+
+  if (Array.isArray(data)) {
+
+    data.forEach(function(voter) {
+
+      const rumah =
+        String(
+          voter['No. Rumah'] || ''
+        ).trim();
+
+
+      if (rumah) {
+
+        houses.add(rumah);
+
+      }
+
+    });
+
+  }
+
+
+  houseCount.textContent =
+    houses.size;
+
+}
+
+function clearVoterSearch() {
+
+  document.getElementById('voterSearch').value = '';
+
+  applyFilters();
+
+}
+
+function resetFilters() {
+
+  document.getElementById('localitySelect').value = '';
+
+  document.getElementById('ageFrom').value = '';
+
+  document.getElementById('ageTo').value = '';
+
+  document.getElementById('genderSelect').value = '';
+
+  document.getElementById('raceSelect').value = '';
+
+  // =========================
+  // RESET KOD CULA
+  // =========================
+
+  const kodCulaSelect =
+    document.getElementById('kodCulaSelect');
+
+  if (kodCulaSelect) {
+
+    kodCulaSelect.value = '';
+
+  }
+
+
+  const kodDM =
+    document.getElementById('dmSelect').value;
+
+
+  // =========================
+  // PAPAR SEMULA SEMUA
+  // PEMILIH DM
+  // =========================
+
+  applyFilters();
+
+}
+
+function loadHouses() {
+
+  const kodDM =
+    document.getElementById(
+      'dmSelect'
+    ).value;
+
+
+  const kodLokaliti =
+    document.getElementById(
+      'localitySelect'
+    ).value;
+
+
+  const houseSelect =
+    document.getElementById(
+      'houseSelect'
+    );
+
+
+  // =========================
+  // REQUEST ID
+  // =========================
+
+  window.houseRequestId =
+    (window.houseRequestId || 0) + 1;
+
+
+  const currentRequestId =
+    window.houseRequestId;
+
+
+  // =========================
+  // LOADING
+  // =========================
+
+  houseSelect.innerHTML =
+    '<option value="">Sedang dimuatkan...</option>';
+
+  houseSelect.disabled = true;
+
+
+  document.getElementById(
+    'searchHouse'
+  ).disabled = true;
+
+
+  document.getElementById(
+    'voterList'
+  ).innerHTML =
+    '<div class="empty">Pilih Rumah.</div>';
+
+
+  // =========================
+  // SEMAK DM & LOKALITI
+  // =========================
+
+  if (!kodDM || !kodLokaliti) {
+
+    houseSelect.innerHTML =
+      '<option value="">Pilih Rumah</option>';
+
+    return;
+
+  }
+
+
+  // =========================
+  // LOAD RUMAH
+  // =========================
+
+  google.script.run
+
+    .withSuccessHandler(function(data) {
+
+      // =========================
+      // ABAIKAN RESPONSE LAMA
+      // =========================
+
+      if (
+        currentRequestId !==
+        window.houseRequestId
+      ) {
+
+        console.log(
+          'Response rumah lama diabaikan:',
+          currentRequestId
+        );
+
+        return;
+
+      }
+
+
+      // =========================
+      // SEMAK PILIHAN TERKINI
+      // =========================
+
+      const currentDM =
+        document.getElementById(
+          'dmSelect'
+        ).value;
+
+
+      const currentLokaliti =
+        document.getElementById(
+          'localitySelect'
+        ).value;
+
+
+      if (
+        currentDM !== kodDM ||
+        currentLokaliti !== kodLokaliti
+      ) {
+
+        console.log(
+          'Response rumah tidak lagi sepadan dengan pilihan semasa.'
+        );
+
+        return;
+
+      }
+
+
+      // =========================
+      // SIMPAN DATA
+      // =========================
+
+      houseList =
+        data || [];
+
+
+      // =========================
+      // PAPAR DROPDOWN
+      // =========================
+
+      houseSelect.innerHTML =
+        '<option value="">Pilih Rumah</option>';
+
+
+      houseList.forEach(function(house) {
+
+        const option =
+          document.createElement(
+            'option'
+          );
+
+
+        option.value =
+          house.noRumah;
+
+
+        option.textContent =
+          house.noRumah;
+
+
+        houseSelect.appendChild(
+          option
+        );
+
+      });
+
+
+      houseSelect.disabled = false;
+
+
+      document.getElementById(
+        'searchHouse'
+      ).disabled = false;
+
+    })
+
+
+    .withFailureHandler(function(error) {
+
+      // Abaikan error daripada
+      // request lama
+
+      if (
+        currentRequestId !==
+        window.houseRequestId
+      ) {
+
+        return;
+
+      }
+
+
+      console.error(
+        'Gagal memuatkan senarai rumah:',
+        error
+      );
+
+
+      houseSelect.innerHTML =
+        '<option value="">Pilih Rumah</option>';
+
+
+      houseSelect.disabled = false;
+
+
+      document.getElementById(
+        'searchHouse'
+      ).disabled = false;
+
+
+      const errorMessage =
+        error && error.message
+          ? error.message
+          : error;
+
+
+      showPremiumNotification(
+        'error',
+        'Gagal memuatkan senarai rumah: ' +
+        errorMessage
+      );
+
+    })
+
+
+    .getHouseList(
+      kodDM,
+      kodLokaliti
+    );
+
+}
+
+
+/* =========================
+   FILTER HOUSES
+========================= */
+
+function filterHouses() {
+
+  const keyword =
+    document
+      .getElementById('searchHouse')
+      .value
+      .toLowerCase()
+      .trim();
+
+
+  const houseSelect =
+    document.getElementById('houseSelect');
+
+
+  houseSelect.innerHTML =
+    '<option value="">Pilih Rumah</option>';
+
+
+  houseList
+
+    .filter(function(house) {
+
+      return String(house.noRumah)
+        .toLowerCase()
+        .includes(keyword);
+
+    })
+
+    .forEach(function(house) {
+
+      const option =
+        document.createElement('option');
+
+      option.value =
+        house.noRumah;
+
+      option.textContent =
+        house.noRumah;
+
+      houseSelect.appendChild(option);
+
+    });
+
+}
+
+
+
+/* =========================
+   LOAD VOTERS
+========================= */
+
+function loadVoters() {
+
+  const kodDM =
+    document.getElementById('dmSelect').value;
+
+  const kodLokaliti =
+    document.getElementById('localitySelect').value;
+
+  const noRumah =
+    document.getElementById('houseSelect').value;
+
+
+  const voterList =
+    document.getElementById('voterList');
+
+
+  if (!kodDM || !kodLokaliti || !noRumah) {
+
+    voterList.innerHTML =
+      '<div class="empty">Pilih Rumah.</div>';
+
+    return;
+
+  }
+
+
+  voterList.innerHTML =
+    '<div class="empty">Sedang membaca data...</div>';
+
+
+  google.script.run
+
+    .withSuccessHandler(function(data) {
+
+      if (!data || data.length === 0) {
+
+        voterList.innerHTML =
+          '<div class="empty">Tiada pemilih.</div>';
+
+        return;
+
+      }
+
+
+      voterList.innerHTML = '';
+
+
+      data.forEach(function(voter) {
+
+        const div =
+          document.createElement('div');
+
+        div.className =
+          'voter';
+
+
+        div.innerHTML = `
+
+          <div class="voter-name">
+
+            ${voter['Nama Pemilih'] || '-'}
+
+          </div>
+
+          <div class="voter-info">
+
+            Siri: ${voter['No. Siri'] || '-'}
+            &nbsp; | &nbsp;
+
+            ${voter['Jantina'] || '-'}
+            &nbsp; | &nbsp;
+
+            ${voter['Bangsa'] || '-'}
+
+          </div>
+
+        `;
+
+
+        voterList.appendChild(div);
+
+      });
+
+    })
+
+    .withFailureHandler(function(error) {
+
+      voterList.innerHTML =
+        '<div class="empty">Ralat: ' +
+        error.message +
+        '</div>';
+
+    })
+
+    .getVotersByHouse(
+      kodDM,
+      kodLokaliti,
+      noRumah
+    );
+
+}
+
+/* =========================
+   SEARCH VOTERS BY FILTER
+========================= */
+
+function searchVotersByFilter() {
+
+  const kodDM =
+    document.getElementById('dmSelect').value;
+
+
+  const kodLokaliti =
+    document.getElementById('localitySelect').value;
+
+
+  const umurDari =
+    document.getElementById('ageFrom').value;
+
+
+  const umurHingga =
+    document.getElementById('ageTo').value;
+
+
+  const jantina =
+    document.getElementById('genderSelect').value;
+
+
+  const bangsa =
+    document.getElementById('raceSelect').value;
+
+
+  // =========================
+  // VALIDASI
+  // =========================
+
+  if (!kodDM) {
+
+    showPremiumNotification(
+      'error',
+      'Sila pilih DM dahulu.'
+    );
+
+    return;
+
+  }
+
+
+  if (!kodLokaliti) {
+
+    showPremiumNotification(
+      'error',
+      'Sila pilih Lokaliti dahulu.'
+    );
+
+    return;
+
+  }
+
+
+  if (
+    umurDari !== '' &&
+    umurHingga !== '' &&
+    Number(umurDari) >
+    Number(umurHingga)
+  ) {
+
+    showPremiumNotification(
+      'error',
+      'Umur Dari tidak boleh lebih besar daripada Umur Hingga.'
+    );
+
+    return;
+
+  }
+
+
+  // =========================
+  // PAPAR LOADING
+  // =========================
+
+  const voterList =
+    document.getElementById(
+      'voterList'
+    );
+
+
+  voterList.innerHTML =
+    '<div class="empty">🔄 Sedang mencari pemilih...</div>';
+
+
+  // =========================
+  // FILTER
+  // =========================
+
+  const filters = {
+
+    kodDM:
+      kodDM,
+
+    kodLokaliti:
+      kodLokaliti,
+
+    umurDari:
+      umurDari,
+
+    umurHingga:
+      umurHingga,
+
+    jantina:
+      jantina,
+
+    bangsa:
+      bangsa
+
+  };
+
+
+  // =========================
+  // CALL CODE.GS
+  // =========================
+
+  google.script.run
+
+    .withSuccessHandler(function(data) {
+
+      currentVoters =
+        data || [];
+
+      displayFilteredVoters(
+        data
+      );
+
+  })
+
+
+    .withFailureHandler(function(error) {
+
+      const errorMessage =
+        error && error.message
+          ? error.message
+          : error;
+
+
+      console.error(
+        'Gagal mencari pemilih:',
+        error
+      );
+
+
+      voterList.innerHTML =
+        '<div class="empty">❌ Ralat: ' +
+        errorMessage +
+        '</div>';
+
+
+      showPremiumNotification(
+        'error',
+        'Gagal mencari pemilih: ' +
+        errorMessage
+      );
+
+    })
+
+
+    .searchVoters(
+      filters
+    );
+
+}
+
+function renderCulaBadges(kodCula) {
+
+  if (!kodCula) {
+    return '';
+  }
+
+  const culaMap = {
+
+    A: ['A', 'Atas Pagar'],
+    B: ['B', 'Bulan'],
+    C: ['C', 'Condong Bulan'],
+    D: ['D', 'Dacing'],
+    E: ['E', 'Condong Dacing'],
+    F: ['F', 'Gagal Dikesan'],
+    G: ['G', 'Mati'],
+    H: ['H', 'Bulan Luar Kawasan'],
+    K: ['K', 'Keadilan'],
+    M: ['M', 'Bersatu'],
+    N: ['N', 'Gerakan'],
+    P: ['P', 'Amanah'],
+    R: ['R', 'DAP'],
+    S: ['S', 'Pejuang'],
+    T: ['T', 'Ibubapa PASTI, SRI, SRITI, SMITI, Maahad'],
+    X: ['X', 'Parti Bebas'],
+    Y: ['Y', 'Parti MUDA'],
+    '?': ['?', 'Belum Cula']
+
+  };
+
+  return String(kodCula)
+    .split(',')
+    .map(function(kod) {
+
+      kod =
+        kod.trim().toUpperCase();
+
+      const item =
+        culaMap[kod];
+
+      if (!item) {
+        return '';
+      }
+
+      return `
+        <span class="cula-badge">
+          <span class="cula-code">
+            ${item[0]}
+          </span>
+
+          <span class="cula-label">
+            ${item[1]}
+          </span>
+        </span>
+      `;
+
+    })
+    .join('');
+
+}
+
+
+
+/* =========================
+   FILTER READY
+========================= */
+
+function filterReady() {
+
+  const kodDM =
+    document.getElementById('dmSelect').value;
+
+  const kodLokaliti =
+    document.getElementById('localitySelect').value;
+
+
+  if (!kodDM || !kodLokaliti) {
+    return;
+  }
+
+}
+
+function toggleMobileFilter() {
+
+  const content =
+    document.getElementById('filterContent');
+
+  const arrow =
+    document.getElementById('mobileFilterArrow');
+
+
+  if (!content || !arrow) {
+    return;
+  }
+
+
+  const isOpen =
+    content.classList.contains('mobile-filter-open');
+
+
+  if (isOpen) {
+
+    content.classList.remove(
+      'mobile-filter-open'
+    );
+
+    arrow.textContent = '▼';
+
+  } else {
+
+    content.classList.add(
+      'mobile-filter-open'
+    );
+
+    arrow.textContent = '▲';
+
+  }
+
+}
+
+function toggleMobileSearch() {
+
+  const content =
+    document.getElementById('searchContent');
+
+  const arrow =
+    document.getElementById('mobileSearchArrow');
+
+
+  if (!content || !arrow) {
+    return;
+  }
+
+
+  const isOpen =
+    content.classList.contains(
+      'mobile-search-open'
+    );
+
+
+  if (isOpen) {
+
+    content.classList.remove(
+      'mobile-search-open'
+    );
+
+    arrow.textContent = '▼';
+
+  } else {
+
+    content.classList.add(
+      'mobile-search-open'
+    );
+
+    arrow.textContent = '▲';
+
+  }
+
+}
+
+function goHome() {
+
+  window.top.location.href =
+    GITHUB_PAGES_URL;
+
+}
+
+
+/* =========================
+   START
+========================= */
+
+loadDM();
+
+getCurrentUser();
+
+
+</script>
+
+
+
+
+
+
+
+<div
+  id="culaOverlay"
+  class="cula-overlay"
+  onclick="closeCula()">
+</div>
+
+
+<div
+  id="culaPanel"
+  class="cula-panel"
+  style="display:none;">
+
+  <div class="cula-header">
+
+  <div>
+
+    <div class="cula-title">
+      🏷️ Kod Cula
+    </div>
+
+    <div
+      id="culaVoterName"
+      class="cula-voter-name">
+
+      Pemilih
+
+    </div>
+
+    <div
+      id="culaVoterInfo"
+      class="cula-subtitle">
+
+      Tandakan kategori pemilih
+
+    </div>
+
+  </div>
+
+
+  <button
+    type="button"
+    class="cula-close"
+    onclick="closeCula()">
+
+    ×
+
+  </button>
+
+</div>
+
+  <!-- =========================
+     KECENDERUNGAN
+========================= -->
+
+<div class="cula-section-title">
+  🗳️ KECENDERUNGAN
+</div>
+
+<div class="cula-options">
+
+  <label class="cula-option cula-neutral">
+    <input type="radio" name="kodCula" value="A">
+    <span class="cula-code">A</span>
+    <span class="cula-label">Atas Pagar</span>
+  </label>
+
+  <label class="cula-option">
+    <input type="radio" name="kodCula" value="B">
+    <span class="cula-code">B</span>
+    <span class="cula-label">Bulan</span>
+  </label>
+
+  <label class="cula-option">
+    <input type="radio" name="kodCula" value="C">
+    <span class="cula-code">C</span>
+    <span class="cula-label">Condong Bulan</span>
+  </label>
+
+  <label class="cula-option">
+    <input type="radio" name="kodCula" value="D">
+    <span class="cula-code">D</span>
+    <span class="cula-label">Dacing</span>
+  </label>
+
+  <label class="cula-option">
+    <input type="radio" name="kodCula" value="E">
+    <span class="cula-code">E</span>
+    <span class="cula-label">Condong Dacing</span>
+  </label>
+
+  <label class="cula-option">
+    <input type="radio" name="kodCula" value="F">
+    <span class="cula-code">F</span>
+    <span class="cula-label">Gagal Dikesan</span>
+  </label>
+
+  <label class="cula-option">
+    <input type="radio" name="kodCula" value="G">
+    <span class="cula-code">G</span>
+    <span class="cula-label">Mati</span>
+  </label>
+
+  <label class="cula-option">
+    <input type="radio" name="kodCula" value="H">
+    <span class="cula-code">H</span>
+    <span class="cula-label">Bulan Luar Kawasan</span>
+  </label>
+
+  <label class="cula-option">
+    <input type="radio" name="kodCula" value="K">
+    <span class="cula-code">K</span>
+    <span class="cula-label">Keadilan</span>
+  </label>
+
+  <label class="cula-option">
+    <input type="radio" name="kodCula" value="M">
+    <span class="cula-code">M</span>
+    <span class="cula-label">Bersatu</span>
+  </label>
+
+  <label class="cula-option">
+    <input type="radio" name="kodCula" value="N">
+    <span class="cula-code">N</span>
+    <span class="cula-label">Gerakan</span>
+  </label>
+
+  <label class="cula-option">
+    <input type="radio" name="kodCula" value="P">
+    <span class="cula-code">P</span>
+    <span class="cula-label">Amanah</span>
+  </label>
+
+  <label class="cula-option">
+    <input type="radio" name="kodCula" value="R">
+    <span class="cula-code">R</span>
+    <span class="cula-label">DAP</span>
+  </label>
+
+  <label class="cula-option">
+    <input type="radio" name="kodCula" value="S">
+    <span class="cula-code">S</span>
+    <span class="cula-label">Pejuang</span>
+  </label>
+
+  <label class="cula-option">
+    <input type="radio" name="kodCula" value="T">
+    <span class="cula-code">T</span>
+    <span class="cula-label">
+      Ibubapa PASTI, SRI, SRITI, SMITI, Maahad
+    </span>
+  </label>
+
+  <label class="cula-option">
+    <input type="radio" name="kodCula" value="X">
+    <span class="cula-code">X</span>
+    <span class="cula-label">Parti Bebas</span>
+  </label>
+
+  <label class="cula-option">
+    <input type="radio" name="kodCula" value="Y">
+    <span class="cula-code">Y</span>
+    <span class="cula-label">Parti MUDA</span>
+  </label>
+
+  <label class="cula-option cula-pending">
+    <input type="radio" name="kodCula" value="?">
+    <span class="cula-code">?</span>
+    <span class="cula-label">Belum Cula</span>
+  </label>
+
+</div>
+
+
+<!-- =========================
+     KEBAJIKAN
+========================= -->
+
+<div class="cula-section-title">
+  💚 KEBAJIKAN
+</div>
+
+<div class="cula-options">
+
+  <label class="cula-option cula-m">
+    <input type="checkbox" value="KB:M">
+
+    <span class="cula-icon">💰</span>
+    <span class="cula-code">M</span>
+    <span class="cula-label">Miskin</span>
+  </label>
+
+
+  <label class="cula-option cula-o">
+    <input type="checkbox" value="KB:O">
+
+    <span class="cula-icon">♿</span>
+    <span class="cula-code">O</span>
+    <span class="cula-label">OKU</span>
+  </label>
+
+
+  <label class="cula-option cula-s">
+    <input type="checkbox" value="KB:S">
+
+    <span class="cula-icon">🏥</span>
+    <span class="cula-code">S</span>
+    <span class="cula-label">Sakit</span>
+  </label>
+
+
+  <label class="cula-option cula-w">
+    <input type="checkbox" value="KB:W">
+
+    <span class="cula-icon">👴</span>
+    <span class="cula-code">W</span>
+    <span class="cula-label">Warga Emas</span>
+  </label>
+
+
+  <label class="cula-option cula-a">
+    <input type="checkbox" value="KB:A">
+
+    <span class="cula-icon">👩</span>
+    <span class="cula-code">A</span>
+    <span class="cula-label">Armalah</span>
+  </label>
+
+
+  <label class="cula-option cula-y">
+    <input type="checkbox" value="KB:Y">
+
+    <span class="cula-icon">🧒</span>
+    <span class="cula-code">Y</span>
+    <span class="cula-label">Yatim</span>
+  </label>
+
+</div>
+
+  <div class="cula-notes">
+
+  <label class="cula-notes-label">
+    📝 CATATAN / REMARK
+  </label>
+
+  <textarea
+    id="culaCatatan"
+    class="cula-notes-input"
+    rows="4"
+    placeholder="Masukkan catatan atau remark...">
+  </textarea>
+
+</div>
+
+  <div class="cula-buttons">
+
+  <button
+    type="button"
+    class="btn-cancel-cula"
+    onclick="closeCula()">
+
+    ✖️ BATAL
+
+  </button>
+
+
+  <button
+    type="button"
+    class="btn-save-cula"
+    onclick="saveCula()">
+
+    💾 SIMPAN KOD CULA
+
+  </button>
+
+</div>
+
+</div>
+
+<!-- EDIT DETAIL OVERLAY -->
+
+<div
+  id="editDetailOverlay"
+  class="edit-detail-overlay"
+  onclick="closeEditDetail()">
+</div>
+
+
+<!-- EDIT DETAIL PANEL -->
+
+<div
+  id="editDetailPanel"
+  class="edit-detail-panel"
+  style="display:none;">
+
+  <div class="edit-detail-header">
+
+    <div>
+
+      <div class="edit-detail-title">
+        👤 Edit Maklumat Pemilih
+      </div>
+
+      <div
+        id="editDetailNama"
+        class="edit-detail-subtitle">
+      </div>
+
+    </div>
+
+
+    <button
+      type="button"
+      class="edit-detail-close"
+      onclick="closeEditDetail()">
+
+      ×
+
+    </button>
+
+  </div>
+
+
+  <div class="edit-detail-body">
+
+    <div class="edit-detail-field">
+
+      <label>📱 Tel. Bimbit</label>
+
+      <input
+        type="text"
+        id="editTelBimbit"
+        placeholder="Contoh: 0123456789">
+
+    </div>
+
+
+    <div class="edit-detail-field">
+
+      <label>☎️ Tel. Rumah</label>
+
+      <input
+        type="text"
+        id="editTelRumah"
+        placeholder="Masukkan nombor telefon">
+
+    </div>
+
+
+    <div class="edit-detail-field">
+
+      <label>🏠 Alamat Kediaman</label>
+
+      <textarea
+        id="editAlamatKediaman"
+        rows="3"
+        placeholder="Masukkan alamat kediaman"></textarea>
+
+    </div>
+
+
+    <div class="edit-detail-field">
+
+      <label>📍 Alamat K/P</label>
+
+      <textarea
+        id="editAlamatKP"
+        rows="3"
+        placeholder="Masukkan alamat K/P"></textarea>
+
+    </div>
+
+  </div>
+
+
+  <div class="edit-detail-buttons">
+
+    <button
+      type="button"
+      class="btn-cancel-edit"
+      onclick="closeEditDetail()">
+
+      ✖️ BATAL
+
+    </button>
+
+
+    <button
+      type="button"
+      class="btn-save-edit"
+      onclick="saveEditDetail()">
+
+      💾 SIMPAN
+
+    </button>
+
+  </div>
+
+</div>
+<style>
+
+.cula-panel {
+
+  display: none;
+
+  position: fixed;
+
+  top: 50%;
+
+  left: 50%;
+
+  transform: translate(-50%, -50%);
+
+  width: min(420px, 90%);
+
+  max-height: 85vh;
+
+  overflow-y: auto;
+
+  background: #ffffff;
+
+  border-radius: 20px;
+
+  padding: 24px;
+
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+
+  z-index: 999999;
+
+}
+
+
+.cula-header {
+
+  display: flex;
+
+  justify-content: space-between;
+
+  align-items: center;
+
+  margin-bottom: 20px;
+
+}
+
+
+.cula-title {
+
+  font-size: 22px;
+
+  font-weight: 700;
+
+}
+
+
+.cula-subtitle {
+
+  font-size: 13px;
+
+  color: #777;
+
+  margin-top: 4px;
+
+}
+
+
+.cula-options {
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, 1fr);
+
+  gap: 12px;
+
+  margin-top: 20px;
+
+}
+
+
+.cula-option {
+
+  position: relative;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  justify-content: center;
+
+  min-height: 120px;
+
+  padding: 16px;
+
+  border: 2px solid #e5e7eb;
+
+  border-radius: 18px;
+
+  background: #ffffff;
+
+  cursor: pointer;
+
+  transition:
+    transform .15s ease,
+    box-shadow .15s ease,
+    border-color .15s ease;
+
+  user-select: none;
+
+}
+
+
+.cula-option:hover {
+
+  transform:
+    translateY(-2px);
+
+  box-shadow:
+    0 8px 20px rgba(0,0,0,.08);
+
+}
+
+
+.cula-option input {
+
+  position: absolute;
+
+  opacity: 0;
+
+  pointer-events: none;
+
+}
+
+
+.cula-icon {
+
+  font-size: 30px;
+
+  margin-bottom: 6px;
+
+}
+
+
+.cula-code {
+
+  font-size: 20px;
+
+  font-weight: 800;
+
+}
+
+
+.cula-label {
+
+  margin-top: 3px;
+
+  font-size: 12px;
+
+  font-weight: 600;
+
+  color: #6b7280;
+
+}
+
+
+/* =========================
+   SELECTED
+========================= */
+
+.cula-option:has(input:checked) {
+
+  border-color:
+    currentColor;
+
+  box-shadow:
+    0 0 0 3px
+    rgba(0,0,0,.06);
+
+  transform:
+    translateY(-2px);
+
+}
+
+
+.cula-option:has(input:checked)::after {
+
+  content: '✓';
+
+  position: absolute;
+
+  top: 8px;
+
+  right: 10px;
+
+  width: 24px;
+
+  height: 24px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  border-radius: 50%;
+
+  background: currentColor;
+
+  color: white;
+
+  font-size: 14px;
+
+  font-weight: 800;
+
+}
+
+
+/* =========================
+   WARNA SETIAP CULA
+========================= */
+
+.cula-option.cula-m {
+  color: #b91c1c;
+}
+
+.cula-option.cula-o {
+  color: #1d4ed8;
+}
+
+.cula-option.cula-s {
+  color: #b45309;
+}
+
+.cula-option.cula-w {
+  color: #6d28d9;
+}
+
+.cula-option.cula-a {
+  color: #be185d;
+}
+
+.cula-option.cula-y {
+  color: #15803d;
+}
+
+@media (max-width: 480px) {
+
+  .cula-options {
+
+    grid-template-columns:
+      repeat(2, 1fr);
+
+    gap: 8px;
+
+  }
+
+
+  .cula-option {
+
+    min-height: 105px;
+
+    padding: 12px;
+
+  }
+
+
+  .cula-icon {
+
+    font-size: 26px;
+
+  }
+
+}
+
+.cula-voter-name {
+
+  margin-top: 5px;
+
+  font-size: 16px;
+
+  font-weight: 800;
+
+  color: #111827;
+
+  max-width: 280px;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+
+}
+
+
+.cula-subtitle {
+
+  margin-top: 4px;
+
+  font-size: 12px;
+
+  color: #6b7280;
+
+}
+
+
+.btn-save-cula {
+
+  width: 100%;
+
+  margin-top: 20px;
+
+  padding: 13px;
+
+  border: none;
+
+  border-radius: 12px;
+
+  font-weight: 700;
+
+  cursor: pointer;
+
+}
+
+.cula-buttons {
+
+  display: flex;
+
+  gap: 10px;
+
+  margin-top: 20px;
+
+}
+
+
+.btn-cancel-cula,
+.btn-save-cula {
+
+  flex: 1;
+
+  padding: 13px;
+
+  border: none;
+
+  border-radius: 12px;
+
+  font-weight: 700;
+
+  cursor: pointer;
+
+}
+
+
+.btn-cancel-cula {
+
+  background: #f1f5f9;
+
+}
+
+
+.btn-save-cula {
+
+  background: #111827;
+
+  color: white;
+
+}
+
+.cula-overlay {
+
+  display: none;
+
+  position: fixed;
+
+  inset: 0;
+
+  background: rgba(0,0,0,0.45);
+
+  backdrop-filter: blur(3px);
+
+  z-index: 999998;
+
+}
+
+
+.cula-close {
+
+  width: 36px;
+
+  height: 36px;
+
+  border: none;
+
+  border-radius: 50%;
+
+  background: #f1f5f9;
+
+  font-size: 24px;
+
+  line-height: 1;
+
+  cursor: pointer;
+
+}
+
+
+.cula-close:hover {
+
+  background: #e2e8f0;
+
+}
+
+
+.cula-panel {
+
+  animation: culaPopup 0.2s ease-out;
+
+}
+
+
+@keyframes culaPopup {
+
+  from {
+
+    opacity: 0;
+
+    transform:
+      translate(-50%, -46%)
+      scale(0.95);
+
+  }
+
+  to {
+
+    opacity: 1;
+
+    transform:
+      translate(-50%, -50%)
+      scale(1);
+
+  }
+
+}
+
+.voter-cula {
+
+  display: flex;
+
+  flex-wrap: wrap;
+
+  gap: 6px;
+
+  margin-top: 10px;
+
+}
+
+
+.cula-badge {
+
+  display: inline-flex;
+
+  align-items: center;
+
+  padding: 5px 9px;
+
+  border-radius: 999px;
+
+  font-size: 12px;
+
+  font-weight: 700;
+
+  white-space: nowrap;
+
+}
+
+
+.cula-m {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+
+.cula-o {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+
+.cula-s {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+
+.cula-w {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+
+.cula-a {
+  background: #fce7f3;
+  color: #be185d;
+}
+
+
+.cula-y {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.voter-cula {
+
+  display: flex;
+
+  flex-wrap: wrap;
+
+  gap: 6px;
+
+  margin-top: 10px;
+
+}
+
+
+.cula-badge {
+
+  display: inline-flex;
+
+  align-items: center;
+
+  padding: 5px 10px;
+
+  border-radius: 999px;
+
+  font-size: 12px;
+
+  font-weight: 700;
+
+  white-space: nowrap;
+
+}
+
+
+.cula-m {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.cula-o {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.cula-s {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.cula-w {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.cula-a {
+  background: #fce7f3;
+  color: #be185d;
+}
+
+.cula-y {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.cula-notes {
+
+  margin-top: 18px;
+
+}
+
+
+.cula-notes-label {
+
+  display: block;
+
+  margin-bottom: 7px;
+
+  font-size: 13px;
+
+  font-weight: 700;
+
+  color: #374151;
+
+}
+
+
+.cula-notes-input {
+
+  width: 100%;
+
+  min-height: 90px;
+
+  padding: 12px 14px;
+
+  border: 1px solid #d1d5db;
+
+  border-radius: 12px;
+
+  background: #f9fafb;
+
+  color: #111827;
+
+  font-family: inherit;
+
+  font-size: 13px;
+
+  line-height: 1.5;
+
+  resize: vertical;
+
+  box-sizing: border-box;
+
+  outline: none;
+
+  transition:
+    border-color .2s ease,
+    box-shadow .2s ease;
+
+}
+
+
+.cula-notes-input:focus {
+
+  border-color: #6366f1;
+
+  background: #ffffff;
+
+  box-shadow:
+    0 0 0 3px
+    rgba(99,102,241,.12);
+
+}
+
+
+.cula-notes-input::placeholder {
+
+  color: #9ca3af;
+
+}
+
+/* =========================================
+   EDIT DETAIL
+========================================= */
+
+.edit-detail-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  z-index: 9998;
+  display: none;
+}
+
+
+.edit-detail-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+
+  transform: translate(-50%, -50%);
+
+  width: min(92vw, 520px);
+  max-height: 90vh;
+
+  background: #ffffff;
+  border-radius: 20px;
+
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.25);
+
+  overflow: hidden;
+
+  z-index: 9999;
+}
+
+
+/* HEADER */
+
+.edit-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 20px 22px;
+
+  border-bottom: 1px solid #e5e7eb;
+}
+
+
+.edit-detail-title {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+
+.edit-detail-subtitle {
+  margin-top: 4px;
+
+  font-size: 13px;
+  color: #6b7280;
+}
+
+
+.edit-detail-close {
+  width: 38px;
+  height: 38px;
+
+  border: none;
+  border-radius: 50%;
+
+  background: #f3f4f6;
+
+  font-size: 24px;
+  cursor: pointer;
+}
+
+
+.edit-detail-close:hover {
+  background: #e5e7eb;
+}
+
+
+/* BODY */
+
+.edit-detail-body {
+  padding: 20px 22px;
+
+  overflow-y: auto;
+  max-height: 65vh;
+}
+
+
+.edit-detail-field {
+  margin-bottom: 18px;
+}
+
+
+.edit-detail-field label {
+  display: block;
+
+  margin-bottom: 7px;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  color: #374151;
+}
+
+
+.edit-detail-field input,
+.edit-detail-field textarea {
+  width: 100%;
+
+  box-sizing: border-box;
+
+  padding: 12px 14px;
+
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+
+  background: #f9fafb;
+
+  font-size: 14px;
+
+  outline: none;
+
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s,
+    background 0.2s;
+}
+
+
+.edit-detail-field textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+
+.edit-detail-field input:focus,
+.edit-detail-field textarea:focus {
+  border-color: #6366f1;
+
+  background: #ffffff;
+
+  box-shadow:
+    0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+
+/* BUTTONS */
+
+.edit-detail-buttons {
+  display: flex;
+  gap: 10px;
+
+  padding: 16px 22px;
+
+  border-top: 1px solid #e5e7eb;
+
+  background: #f9fafb;
+}
+
+
+.btn-cancel-edit,
+.btn-save-edit {
+  flex: 1;
+
+  min-height: 44px;
+
+  border: none;
+  border-radius: 10px;
+
+  font-size: 14px;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.15s,
+    opacity 0.15s;
+}
+
+
+.btn-cancel-edit {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+
+.btn-save-edit {
+  background: #111827;
+  color: #ffffff;
+}
+
+
+.btn-cancel-edit:hover,
+.btn-save-edit:hover {
+  transform: translateY(-1px);
+}
+
+
+.btn-cancel-edit:disabled,
+.btn-save-edit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+
+/* MOBILE */
+
+@media (max-width: 600px) {
+
+  .edit-detail-panel {
+    width: 94vw;
+
+    max-height: 92vh;
+
+    border-radius: 16px;
+  }
+
+
+  .edit-detail-header {
+    padding: 16px;
+  }
+
+
+  .edit-detail-body {
+    padding: 16px;
+
+    max-height: 68vh;
+  }
+
+
+  .edit-detail-buttons {
+    padding: 12px 16px;
+  }
+
+}
+
+/* =========================================================
+   PREMIUM VOTER CARD
+   ========================================================= */
+
+.voter {
+
+  position: relative;
+
+  background: rgba(255, 255, 255, 0.96);
+
+  border: 1px solid rgba(15, 23, 42, 0.08);
+
+  border-radius: 20px;
+
+  padding: 20px;
+
+  margin-bottom: 16px;
+
+  box-shadow:
+    0 8px 25px rgba(15, 23, 42, 0.07);
+
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+
+}
+
+
+.voter:hover {
+
+  transform: translateY(-2px);
+
+  box-shadow:
+    0 14px 35px rgba(15, 23, 42, 0.11);
+
+}
+
+
+/* =========================================================
+   TOP
+   ========================================================= */
+
+.voter-top {
+
+  display: flex;
+
+  align-items: flex-start;
+
+  justify-content: space-between;
+
+  gap: 15px;
+
+}
+
+
+.voter-name {
+
+  font-size: 19px;
+
+  font-weight: 800;
+
+  letter-spacing: 0.2px;
+
+  color: #111827;
+
+  line-height: 1.25;
+
+}
+
+
+.voter-meta {
+
+  margin-top: 5px;
+
+  font-size: 12px;
+
+  font-weight: 700;
+
+  color: #64748b;
+
+  text-transform: uppercase;
+
+}
+
+
+.voter-age {
+
+  min-width: 62px;
+
+  height: 62px;
+
+  border-radius: 16px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  justify-content: center;
+
+  background: #f1f5f9;
+
+  color: #0f172a;
+
+  font-size: 22px;
+
+  font-weight: 900;
+
+  line-height: 1;
+
+}
+
+
+.voter-age span {
+
+  margin-top: 5px;
+
+  font-size: 8px;
+
+  font-weight: 800;
+
+  letter-spacing: 0.7px;
+
+  color: #64748b;
+
+}
+
+
+/* =========================================================
+   DIVIDER
+   ========================================================= */
+
+.voter-divider {
+
+  height: 1px;
+
+  margin: 17px 0;
+
+  background: #e5e7eb;
+
+}
+
+
+/* =========================================================
+   INFO GRID
+   ========================================================= */
+
+.voter-info-grid {
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 10px;
+
+}
+
+
+.voter-info-item {
+
+  padding: 11px 13px;
+
+  border-radius: 12px;
+
+  background: #f8fafc;
+
+  border: 1px solid #eef2f7;
+
+}
+
+
+.voter-info-full {
+
+  grid-column: 1 / -1;
+
+}
+
+
+.info-label {
+
+  display: block;
+
+  margin-bottom: 4px;
+
+  font-size: 9px;
+
+  font-weight: 800;
+
+  letter-spacing: 0.7px;
+
+  color: #94a3b8;
+
+}
+
+
+.voter-info-item strong {
+
+  display: block;
+
+  font-size: 13px;
+
+  font-weight: 700;
+
+  color: #334155;
+
+  line-height: 1.35;
+
+}
+
+
+/* =========================================================
+   KECENDERUNGAN
+   ========================================================= */
+
+.voter-section {
+
+  margin-top: 16px;
+
+  padding: 13px;
+
+  border-radius: 14px;
+
+  background: #f8fafc;
+
+  border: 1px solid #eef2f7;
+
+}
+
+
+.voter-section-title {
+
+  margin-bottom: 8px;
+
+  font-size: 10px;
+
+  font-weight: 900;
+
+  letter-spacing: 0.8px;
+
+  color: #64748b;
+
+}
+
+
+.voter-cula {
+
+  display: flex;
+
+  flex-wrap: wrap;
+
+  gap: 6px;
+
+  margin-top: 0;
+
+}
+
+
+/* =========================================================
+   CATATAN
+   ========================================================= */
+
+.voter-catatan {
+
+  margin-top: 12px;
+
+  padding: 11px 13px;
+
+  border-radius: 12px;
+
+  background: #fffbeb;
+
+  border: 1px solid #fde68a;
+
+  color: #92400e;
+
+  font-size: 12px;
+
+  font-weight: 600;
+
+  line-height: 1.45;
+
+}
+
+
+/* =========================================================
+   ACTION BUTTON
+   ========================================================= */
+
+.voter-action {
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 9px;
+
+  margin-top: 17px;
+
+}
+
+
+.voter-action button {
+
+  min-height: 42px;
+
+  border: none;
+
+  border-radius: 12px;
+
+  font-size: 11px;
+
+  font-weight: 800;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+
+}
+
+
+.voter-action button:hover {
+
+  transform: translateY(-1px);
+
+}
+
+
+.btn-edit-detail {
+
+  background: #f1f5f9;
+
+  color: #334155;
+
+  box-shadow:
+    0 3px 8px rgba(15, 23, 42, 0.06);
+
+}
+
+
+.btn-keyin {
+
+  background: #111827;
+
+  color: white;
+
+  box-shadow:
+    0 4px 12px rgba(15, 23, 42, 0.18);
+
+}
+
+
+/* =========================================================
+   PHONE
+   ========================================================= */
+
+.voter-phone {
+
+  margin-top: 10px;
+
+  padding: 10px 13px;
+
+  border-radius: 12px;
+
+  background: #f0fdf4;
+
+  border: 1px solid #dcfce7;
+
+  color: #166534;
+
+  font-size: 13px;
+
+  font-weight: 700;
+
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 600px) {
+
+  .voter {
+
+    padding: 16px;
+
+    border-radius: 17px;
+
+  }
+
+
+  .voter-name {
+
+    font-size: 17px;
+
+  }
+
+
+  .voter-age {
+
+    min-width: 54px;
+
+    height: 54px;
+
+    border-radius: 14px;
+
+    font-size: 19px;
+
+  }
+
+
+  .voter-info-grid {
+
+    grid-template-columns:
+      1fr 1fr;
+
+  }
+
+
+  .voter-action {
+
+    grid-template-columns: 1fr;
+
+  }
+
+
+  .voter-action button {
+
+    min-height: 44px;
+
+  }
+
+}
+
+/* =========================
+   MOBILE FILTER COLLAPSE
+========================= */
+
+.mobile-filter-header {
+
+  display: none;
+
+}
+
+
+.filter-content {
+
+  display: block;
+
+}
+
+
+/* =========================
+   MOBILE ONLY
+========================= */
+
+@media (max-width: 600px) {
+
+  .mobile-filter-header {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    cursor: pointer;
+
+    min-height: 48px;
+
+    user-select: none;
+
+  }
+
+
+  .mobile-filter-header > div {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+  }
+
+
+  .mobile-filter-icon {
+
+    font-size: 18px;
+
+  }
+
+
+  .mobile-filter-title {
+
+    font-size: 17px;
+
+    font-weight: 900;
+
+    color: #111827;
+
+  }
+
+
+  .mobile-filter-arrow {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    width: 32px;
+
+    height: 32px;
+
+    border-radius: 10px;
+
+    background: #f1f5f9;
+
+    color: #475569;
+
+    font-size: 12px;
+
+    font-weight: 900;
+
+  }
+
+
+  .desktop-filter-title {
+
+    display: none;
+
+  }
+
+
+  .filter-content {
+
+    display: none;
+
+    padding-top: 17px;
+
+  }
+
+
+  .filter-content.mobile-filter-open {
+
+    display: block;
+
+  }
+
+
+  .filter-card {
+
+    padding: 15px;
+
+  }
+
+
+  .filter-card .field label {
+
+    font-size: 12px;
+
+  }
+
+
+  .filter-card select,
+  .filter-card input {
+
+    min-height: 50px;
+
+    font-size: 15px;
+
+    border-radius: 13px;
+
+  }
+
+
+  .filter-card .btn-reset {
+
+    min-height: 50px;
+
+    font-size: 13px;
+
+  }
+
+}
+
+
+  .mobile-filter-header > div {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+  }
+
+
+  .mobile-filter-icon {
+
+    font-size: 18px;
+
+  }
+
+
+  .mobile-filter-title {
+
+    font-size: 17px;
+
+    font-weight: 900;
+
+    color: #111827;
+
+  }
+
+
+  .mobile-filter-arrow {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    width: 32px;
+
+    height: 32px;
+
+    border-radius: 10px;
+
+    background: #f1f5f9;
+
+    color: #475569;
+
+    font-size: 12px;
+
+    font-weight: 900;
+
+  }
+
+
+  .desktop-filter-title {
+
+    display: none;
+
+  }
+
+
+  .filter-content {
+
+    display: none;
+
+    padding-top: 17px;
+
+  }
+
+
+  .filter-content.mobile-filter-open {
+
+    display: block;
+
+  }
+
+
+  .filter-card {
+
+    padding: 15px;
+
+  }
+
+
+  .filter-card .field label {
+
+    font-size: 12px;
+
+  }
+
+
+  .filter-card select,
+  .filter-card input {
+
+    min-height: 50px;
+
+    font-size: 15px;
+
+    border-radius: 13px;
+
+  }
+
+
+  .filter-card .btn-reset {
+
+    min-height: 50px;
+
+    font-size: 13px;
+
+  }
+
+}
+
+/* =========================================================
+   MOBILE SEARCH - COLLAPSE
+========================================================= */
+
+/* DESKTOP */
+
+.mobile-search-header {
+  display: none;
+}
+
+.search-content {
+  display: block;
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 600px) {
+
+  /* HEADER CARI PEMILIH */
+
+  .mobile-search-header {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    cursor: pointer;
+
+    min-height: 48px;
+
+    user-select: none;
+
+  }
+
+
+  .mobile-search-header > div {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+  }
+
+
+  .mobile-search-icon {
+
+    font-size: 18px;
+
+  }
+
+
+  .mobile-search-title {
+
+    font-size: 17px;
+
+    font-weight: 900;
+
+    color: #111827;
+
+  }
+
+
+  .mobile-search-arrow {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    width: 32px;
+
+    height: 32px;
+
+    border-radius: 10px;
+
+    background: #f1f5f9;
+
+    color: #475569;
+
+    font-size: 12px;
+
+    font-weight: 900;
+
+  }
+
+
+  /* TAJUK DESKTOP HILANG */
+
+  .desktop-search-title {
+
+    display: none;
+
+  }
+
+
+  /* SEARCH TUTUP */
+
+  .search-content {
+
+    display: none;
+
+    padding-top: 17px;
+
+  }
+
+
+  /* SEARCH BUKA */
+
+  .search-content.mobile-search-open {
+
+    display: block;
+
+  }
+
+
+  /* CARD */
+
+  .search-card {
+
+    padding: 15px;
+
+  }
+
+
+  /* INPUT BESAR UNTUK TELEFON */
+
+  .search-box input {
+
+    min-height: 50px;
+
+    font-size: 16px;
+
+    border-radius: 13px;
+
+  }
+
+
+  /* BUTTON X */
+
+  .search-box .btn-reset {
+
+    min-height: 44px;
+
+    min-width: 44px;
+
+    font-size: 16px;
+
+  }
+
+
+  /* HINT */
+
+  .search-hint {
+
+    font-size: 11px;
+
+    margin-top: 8px;
+
+  }
+
+}
+
+</style>
+<script>
+
+function openCula(voter) {
+
+  // =========================
+  // SIMPAN PEMILIH SEMASA
+  // =========================
+
+  window.currentCulaVoter = voter;
+
+  window.currentCulaSiri =
+    voter['No. Siri'] || '';
+
+
+  // =========================
+  // PAPAR MAKLUMAT PEMILIH
+  // =========================
+
+  const nameElement =
+    document.getElementById(
+      'culaVoterName'
+    );
+
+  const infoElement =
+    document.getElementById(
+      'culaVoterInfo'
+    );
+
+
+  if (nameElement) {
+
+    nameElement.textContent =
+      voter['Nama Pemilih'] ||
+      'Pemilih';
+
+  }
+
+
+  if (infoElement) {
+
+    infoElement.textContent =
+      '🏠 ' +
+      (voter['No. Rumah'] || '-') +
+      '  •  Siri: ' +
+      (voter['No. Siri'] || '-');
+
+  }
+
+
+  // =========================
+  // PANEL + OVERLAY
+  // =========================
+
+  const panel =
+    document.getElementById(
+      'culaPanel'
+    );
+
+  const overlay =
+    document.getElementById(
+      'culaOverlay'
+    );
+
+
+  if (!panel || !overlay) {
+
+    showPremiumNotification(
+      'error',
+      'Komponen Cula tidak dijumpai.'
+    );
+
+    return;
+
+  }
+
+
+  // =========================
+  // RESET SEMUA INPUT
+  // RADIO + CHECKBOX
+  // =========================
+
+  const culaInputs =
+    panel.querySelectorAll(
+      'input[type="radio"], input[type="checkbox"]'
+    );
+
+
+  culaInputs.forEach(function(box) {
+
+    box.checked = false;
+
+  });
+
+
+  // =========================
+  // BACA CATATAN
+  // =========================
+
+  const catatanInput =
+    document.getElementById(
+      'culaCatatan'
+    );
+
+
+  const catatanSimpan =
+    String(
+      voter['Catatan'] || ''
+    ).trim();
+
+
+  let catatanManual =
+    catatanSimpan;
+
+
+  const kebajikan = [];
+
+
+  // =========================
+  // BACA KEBAJIKAN
+  //
+  // Format:
+  // Kebajikan: M, O | Catatan
+  // =========================
+
+  const kebajikanMatch =
+    catatanSimpan.match(
+      /^Kebajikan:\s*([^|]*)/
+    );
+
+
+  if (kebajikanMatch) {
+
+    const kodKebajikan =
+      kebajikanMatch[1]
+        .split(',')
+        .map(function(kod) {
+
+          return kod
+            .trim()
+            .toUpperCase();
+
+        })
+        .filter(Boolean);
+
+
+    kodKebajikan.forEach(
+      function(kod) {
+
+        kebajikan.push(kod);
+
+      }
+    );
+
+
+    // =========================
+    // BUANG PREFIX KEBAJIKAN
+    // DARIPADA CATATAN MANUAL
+    // =========================
+
+    catatanManual =
+      catatanSimpan
+        .replace(
+          /^Kebajikan:\s*[^|]*\s*(\|\s*)?/,
+          ''
+        )
+        .trim();
+
+  }
+
+
+  // =========================
+  // PAPAR CATATAN MANUAL
+  // =========================
+
+  if (catatanInput) {
+
+    catatanInput.value =
+      catatanManual;
+
+  }
+
+
+  // =========================
+  // BACA KOD CULA
+  // =========================
+
+  const kodCula =
+    String(
+      voter['Kod Cula'] || ''
+    ).trim();
+
+
+  const kodList =
+    kodCula
+      ? kodCula
+          .split(',')
+          .map(function(kod) {
+
+            return kod
+              .trim()
+              .toUpperCase();
+
+          })
+          .filter(Boolean)
+      : [];
+
+
+  // =========================
+  // TICK KOD CULA
+  //
+  // RADIO:
+  // → HANYA SATU
+  // =========================
+
+  const kodCulaInputs =
+    panel.querySelectorAll(
+      'input[type="radio"][name="kodCula"]'
+    );
+
+
+  kodCulaInputs.forEach(
+    function(box) {
+
+      const value =
+        String(
+          box.value || ''
+        )
+        .trim()
+        .toUpperCase();
+
+
+      if (
+        kodList.includes(value)
+      ) {
+
+        box.checked = true;
+
+      }
+
+    }
+  );
+
+
+  // =========================
+  // TICK KEBAJIKAN
+  //
+  // CHECKBOX:
+  // → BOLEH BANYAK
+  // =========================
+
+  const kebajikanInputs =
+    panel.querySelectorAll(
+      'input[type="checkbox"]'
+    );
+
+
+  kebajikanInputs.forEach(
+    function(box) {
+
+      const value =
+        String(
+          box.value || ''
+        )
+        .trim()
+        .toUpperCase();
+
+
+      if (
+        value.startsWith('KB:')
+      ) {
+
+        const kod =
+          value
+            .substring(3)
+            .trim()
+            .toUpperCase();
+
+
+        if (
+          kebajikan.includes(kod)
+        ) {
+
+          box.checked = true;
+
+        }
+
+      }
+
+    }
+  );
+
+
+  // =========================
+  // PAPAR POPUP
+  // =========================
+
+  overlay.style.display =
+    'block';
+
+  panel.style.display =
+    'block';
+
+}
+
+function closeCula() {
+
+  const panel =
+    document.getElementById('culaPanel');
+
+  const overlay =
+    document.getElementById('culaOverlay');
+
+
+  if (panel) {
+
+    panel.style.display = 'none';
+
+  }
+
+
+  if (overlay) {
+
+    overlay.style.display = 'none';
+
+  }
+
+}
+
+function saveCula() {
+
+  const voter =
+    window.currentCulaVoter;
+
+
+  // =========================
+  // VALIDASI PEMILIH
+  // =========================
+
+  if (!voter) {
+
+    showPremiumNotification(
+      'error',
+      'Maklumat pemilih tidak dijumpai.'
+    );
+
+    return;
+
+  }
+
+
+  // =========================
+  // BACA RADIO + CHECKBOX
+  // =========================
+  //
+  // Radio:
+  // → Kod Cula
+  // → hanya satu boleh dipilih
+  //
+  // Checkbox:
+  // → Kebajikan
+  // → boleh pilih banyak
+  // =========================
+
+  const culaInputs =
+    document.querySelectorAll(
+      '#culaPanel input[type="radio"], ' +
+      '#culaPanel input[type="checkbox"]'
+    );
+
+
+  const kodCula = [];
+  const kebajikan = [];
+
+
+  culaInputs.forEach(function(box) {
+
+    if (!box.checked) {
+      return;
+    }
+
+
+    const value =
+      String(
+        box.value || ''
+      ).trim();
+
+
+    if (!value) {
+      return;
+    }
+
+
+    // =========================
+    // KEBAJIKAN
+    // =========================
+
+    if (
+      value.startsWith('KB:')
+    ) {
+
+      const kod =
+        value
+          .substring(3)
+          .trim()
+          .toUpperCase();
+
+
+      if (kod) {
+
+        kebajikan.push(kod);
+
+      }
+
+
+      return;
+
+    }
+
+
+    // =========================
+    // KOD CULA
+    // =========================
+
+    kodCula.push(
+      value.toUpperCase()
+    );
+
+  });
+
+
+  // =========================
+  // CATATAN MANUAL
+  // =========================
+
+  const catatanInput =
+    document.getElementById(
+      'culaCatatan'
+    );
+
+
+  const catatan =
+    catatanInput
+      ? catatanInput.value.trim()
+      : '';
+
+
+  // =========================
+  // BINA CATATAN
+  // =========================
+
+  let catatanAkhir = '';
+
+
+  if (
+    kebajikan.length > 0
+  ) {
+
+    catatanAkhir =
+      'Kebajikan: ' +
+      kebajikan.join(', ');
+
+  }
+
+
+  if (catatan) {
+
+    if (catatanAkhir) {
+
+      catatanAkhir +=
+        ' | ' + catatan;
+
+    } else {
+
+      catatanAkhir =
+        catatan;
+
+    }
+
+  }
+
+
+  // =========================
+  // TOKEN LOGIN
+  // =========================
+
+  const token =
+    window.loginToken || '';
+
+
+  // =========================
+  // DATA PEMILIH
+  // =========================
+
+  const data = {
+
+    nama:
+      voter['Nama Pemilih'] || '',
+
+    noRumah:
+      voter['No. Rumah'] || '',
+
+    noSiri:
+      voter['No. Siri'] || '',
+
+    kodCula:
+      kodCula.join(','),
+
+    catatan:
+      catatanAkhir,
+
+    token:
+      token
+
+  };
+
+
+  console.log(
+    'DATA SAVE CULA:',
+    data
+  );
+
+
+  // =========================
+  // BUTTON
+  // =========================
+
+  const saveButton =
+    document.querySelector(
+      '.btn-save-cula'
+    );
+
+
+  if (saveButton) {
+
+    saveButton.disabled = true;
+
+    saveButton.textContent =
+      '⏳ MENYIMPAN...';
+
+  }
+
+
+  // =========================
+  // SIMPAN KE SERVER
+  // =========================
+
+  google.script.run
+
+    .withSuccessHandler(
+      function(response) {
+
+        // =========================
+        // UPDATE DATA TEMPATAN
+        // =========================
+
+        voter['Kod Cula'] =
+          data.kodCula || '';
+
+
+        voter['Catatan'] =
+          data.catatan || '';
+
+
+        voter['Tarikh Culaan'] =
+          response &&
+          response.tarikhCulaan
+            ? response.tarikhCulaan
+            : '';
+
+
+        voter['Dicula Oleh'] =
+          response &&
+          response.diculakanOleh
+            ? response.diculakanOleh
+            : '';
+
+
+        // =========================
+        // TUTUP POPUP
+        // =========================
+
+        closeCula();
+
+
+        // =========================
+        // RESET BUTTON
+        // =========================
+
+        if (saveButton) {
+
+          saveButton.disabled = false;
+
+          saveButton.textContent =
+            '💾 SIMPAN KOD CULA';
+
+        }
+
+
+        // =========================
+        // NOTIFICATION
+        // =========================
+
+        showPremiumNotification(
+          'success',
+          'Data Cula berjaya disimpan.'
+        );
+
+
+        // =========================
+        // REFRESH SENARAI
+        // =========================
+
+        setTimeout(
+          function() {
+
+            applyFilters();
+
+          },
+          300
+        );
+
+      }
+    )
+
+
+    .withFailureHandler(
+      function(error) {
+
+        // =========================
+        // RESET BUTTON
+        // =========================
+
+        if (saveButton) {
+
+          saveButton.disabled = false;
+
+          saveButton.textContent =
+            '💾 SIMPAN KOD CULA';
+
+        }
+
+
+        // =========================
+        // ERROR
+        // =========================
+
+        const errorMessage =
+          error &&
+          error.message
+            ? error.message
+            : error;
+
+
+        console.error(
+          'Gagal simpan Kod Cula:',
+          error
+        );
+
+
+        showPremiumNotification(
+          'error',
+          'Gagal simpan Kod Cula: ' +
+          errorMessage
+        );
+
+      }
+    )
+
+
+    .saveCula(data);
+
+}
+
+let currentEditVoter = null;
+
+
+function openEditDetail(voter) {
+
+  currentEditVoter = voter;
+
+
+  const panel =
+    document.getElementById('editDetailPanel');
+
+  const overlay =
+    document.getElementById('editDetailOverlay');
+
+
+  if (!panel || !overlay) {
+
+    alert('Popup Edit Detail tidak dijumpai.');
+
+    return;
+
+  }
+
+
+  document.getElementById('editDetailNama').textContent =
+    voter['Nama Pemilih'] || 'Pemilih';
+
+
+  document.getElementById('editTelBimbit').value =
+    voter['Tel. Bimbit'] || '';
+
+
+  document.getElementById('editTelRumah').value =
+    voter['Tel. Rumah'] || '';
+
+
+  document.getElementById('editAlamatKediaman').value =
+    voter['Alamat Kediaman'] || '';
+
+
+  document.getElementById('editAlamatKP').value =
+    voter['Alamat K/P'] || '';
+
+
+  overlay.style.display = 'block';
+  panel.style.display = 'block';
+
+}
+
+
+function closeEditDetail() {
+
+  const panel =
+    document.getElementById('editDetailPanel');
+
+  const overlay =
+    document.getElementById('editDetailOverlay');
+
+
+  if (panel) {
+
+    panel.style.display = 'none';
+
+  }
+
+
+  if (overlay) {
+
+    overlay.style.display = 'none';
+
+  }
+
+
+  currentEditVoter = null;
+
+}
+
+function saveEditDetail() {
+
+  // =========================
+  // VALIDASI
+  // =========================
+
+  if (!currentEditVoter) {
+
+    showPremiumNotification(
+      'error',
+      'Rekod pemilih tidak dijumpai.'
+    );
+
+    return;
+
+  }
+
+
+  // =========================
+  // DATA
+  // =========================
+
+  const data = {
+
+    nama:
+      currentEditVoter['Nama Pemilih'] || '',
+
+    noRumah:
+      currentEditVoter['No. Rumah'] || '',
+
+    noSiri:
+      currentEditVoter['No. Siri'] || '',
+
+    telBimbit:
+      document
+        .getElementById('editTelBimbit')
+        .value
+        .trim(),
+
+    telRumah:
+      document
+        .getElementById('editTelRumah')
+        .value
+        .trim(),
+
+    alamatKediaman:
+      document
+        .getElementById('editAlamatKediaman')
+        .value
+        .trim(),
+
+    alamatKP:
+      document
+        .getElementById('editAlamatKP')
+        .value
+        .trim()
+
+  };
+
+
+  // =========================
+  // BUTTON
+  // =========================
+
+  const saveButton =
+    document.querySelector(
+      '.btn-save-edit'
+    );
+
+
+  if (saveButton) {
+
+    saveButton.disabled = true;
+
+    saveButton.textContent =
+      '⏳ MENYIMPAN...';
+
+  }
+
+
+  // =========================
+  // SIMPAN KE SERVER
+  // =========================
+
+  google.script.run
+
+    .withSuccessHandler(
+      function(response) {
+
+        // =========================
+        // RESET BUTTON
+        // =========================
+
+        if (saveButton) {
+
+          saveButton.disabled = false;
+
+          saveButton.textContent =
+            '💾 SIMPAN';
+
+        }
+
+
+        // =========================
+        // SEMAK RESPONSE
+        // =========================
+
+        if (
+          !response ||
+          !response.success
+        ) {
+
+          showPremiumNotification(
+            'error',
+            response &&
+            response.message
+              ? response.message
+              : 'Gagal menyimpan maklumat.'
+          );
+
+          return;
+
+        }
+
+
+        // =========================
+        // UPDATE DATA TEMPATAN
+        // =========================
+
+        currentEditVoter['Tel. Bimbit'] =
+          data.telBimbit;
+
+        currentEditVoter['Tel. Rumah'] =
+          data.telRumah;
+
+        currentEditVoter['Alamat Kediaman'] =
+          data.alamatKediaman;
+
+        currentEditVoter['Alamat K/P'] =
+          data.alamatKP;
+
+
+        // =========================
+        // TUTUP POPUP
+        // =========================
+
+        closeEditDetail();
+
+
+        // =========================
+        // REFRESH KAD
+        // =========================
+
+        if (
+          typeof applyFilters === 'function'
+        ) {
+
+          applyFilters();
+
+        }
+
+
+        // =========================
+        // NOTIFICATION
+        // =========================
+
+        showPremiumNotification(
+          'success',
+          'Maklumat pemilih berjaya dikemaskini.'
+        );
+
+      }
+    )
+
+
+    .withFailureHandler(
+      function(error) {
+
+        // =========================
+        // RESET BUTTON
+        // =========================
+
+        if (saveButton) {
+
+          saveButton.disabled = false;
+
+          saveButton.textContent =
+            '💾 SIMPAN';
+
+        }
+
+
+        // =========================
+        // ERROR
+        // =========================
+
+        const errorMessage =
+          error &&
+          error.message
+            ? error.message
+            : error;
+
+
+        console.error(
+          'Gagal simpan Edit Detail:',
+          error
+        );
+
+
+        showPremiumNotification(
+          'error',
+          'Gagal simpan: ' +
+          errorMessage
+        );
+
+      }
+    )
+
+
+    .saveEditDetail(data);
+
+}
+
+</script>
+</body>
+</html>
