@@ -58,6 +58,16 @@ function githubJsonpRequest_(action, params, success, failure) {
     cleanup();
     if (typeof failure === 'function') failure(new Error('Gagal menghubungi Apps Script API.'));
   };
+  const timeoutId = setTimeout(function() {
+    if (finished) return;
+    cleanup();
+    if (typeof failure === 'function') failure(new Error('API timeout: Apps Script tidak memberi respons.'));
+  }, 30000);
+  const originalCleanup = cleanup;
+  cleanup = function() {
+    try { clearTimeout(timeoutId); } catch (e) {}
+    originalCleanup();
+  };
   script.src = GITHUB_API_URL + '?' + query.toString() + '&callback=' + encodeURIComponent(callbackName);
   document.body.appendChild(script);
 }
@@ -3056,6 +3066,8 @@ function loadDM() {
   const select =
     document.getElementById('dmSelect');
 
+  console.log('🔧 loadDM: mula. Token ada =', !!getSurveyToken_());
+
 
   if (!select) {
 
@@ -3079,124 +3091,74 @@ function loadDM() {
   );
 
 
-  google.script.run
+  // GitHub Pages: panggil API JSONP terus.
+  // Elak adapter google.script.run untuk request DM.
+  githubJsonpRequest_(
+    'dms',
+    {},
+    function(response) {
 
-    .withSuccessHandler(function(data) {
+      const data = response && Array.isArray(response.data)
+        ? response.data
+        : [];
 
       console.log(
         '✅ DATA DM DITERIMA:',
         data
       );
 
-
-      dmList =
-        Array.isArray(data)
-          ? data
-          : [];
-
+      dmList = Array.isArray(data) ? data : [];
 
       select.innerHTML =
         '<option value="">Pilih DM</option>';
 
-
       if (dmList.length === 0) {
-
         select.innerHTML =
           '<option value="">Tiada DM dijumpai</option>';
-
         select.disabled = false;
-
-        console.warn(
-          '⚠️ getDMListForUI() return kosong.'
-        );
-
+        console.warn('⚠️ API dms return kosong.');
         return;
-
       }
 
-
       dmList.forEach(function(dm) {
+        if (!dm || !dm.kodDM || !dm.namaDM) return;
 
-        if (
-          !dm ||
-          !dm.kodDM ||
-          !dm.namaDM
-        ) {
-
-          return;
-
-        }
-
-
-        const option =
-          document.createElement('option');
-
-
-        option.value =
-          String(
-            dm.kodDM
-          ).trim();
-
-
+        const option = document.createElement('option');
+        option.value = String(dm.kodDM).trim();
         option.textContent =
-          String(
-            dm.kodDM
-          ).trim() +
-          ' - ' +
-          String(
-            dm.namaDM
-          ).trim();
-
-
-        select.appendChild(
-          option
-        );
-
+          String(dm.kodDM).trim() + ' - ' + String(dm.namaDM).trim();
+        select.appendChild(option);
       });
 
-
       select.disabled = false;
-
 
       console.log(
         '✅ DM berjaya dipaparkan:',
         select.options.length - 1
       );
-
-    })
-
-
-    .withFailureHandler(function(error) {
+    },
+    function(error) {
 
       console.error(
         '❌ GAGAL LOAD DM:',
         error
       );
 
-
       select.innerHTML =
         '<option value="">Gagal memuatkan DM</option>';
-
       select.disabled = false;
 
-
       const message =
-        error &&
-        error.message
+        error && error.message
           ? error.message
           : String(error);
 
-
       showPremiumNotification(
         'error',
-        'Gagal memuatkan DM: ' +
-        message
+        'Gagal memuatkan DM: ' + message
       );
-
-    })
-
-
-    .getDMListForUI();
+    }
+  );
 
 }
 
