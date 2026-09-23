@@ -20,7 +20,10 @@ function getSurveyToken_() {
 
 window.loginToken = getSurveyToken_();
 
-if (!window.loginToken) {
+function redirectToLogin_() {
+  localStorage.removeItem('survey_token');
+  localStorage.removeItem('BRISK_AUTH_TOKEN');
+  window.loginToken = '';
   window.location.replace('login.html?next=survey.html');
 }
 
@@ -464,77 +467,55 @@ Object.defineProperty(window, 'google', {
    GET CURRENT USER
 ===================================================== */
 
-function getCurrentUser() {
+function getCurrentUser(onReady) {
 
-  google.script.run
+  const token = getSurveyToken_();
 
-    .withSuccessHandler(function(session) {
+  if (!token) {
+    redirectToLogin_();
+    return;
+  }
 
-      if (
-        !session ||
-        !session.loggedIn
-      ) {
+  githubJsonpRequest_(
+    'session',
+    {},
+    function(session) {
 
-        localStorage.removeItem('survey_token');
-        localStorage.removeItem('BRISK_AUTH_TOKEN');
-        window.location.replace('login.html?next=survey.html');
+      if (!session || !session.loggedIn) {
+        console.warn('⚠️ Session tidak sah / telah tamat.');
+        redirectToLogin_();
         return;
-
       }
 
+      window.loginToken = token;
 
-      const username =
-        session.username || '';
+      const username = String(session.username || '').trim();
+      const role = String(session.role || '').trim();
 
+      const userElement = document.getElementById('currentUser');
+      const roleElement = document.getElementById('currentRole');
 
-      const role =
-        session.role || '';
+      if (userElement) userElement.textContent = username;
+      if (roleElement) roleElement.textContent = role;
 
+      console.log('✅ Session sah:', username, role);
 
-      const userElement =
-        document.getElementById(
-          'currentUser'
-        );
+      if (typeof onReady === 'function') onReady(session);
+    },
+    function(error) {
+      console.error('❌ Gagal semak session:', error);
+      redirectToLogin_();
+    }
+  );
+}
 
+function initSurveyPage_() {
+  console.log('🔐 Semak session sebelum load DM...');
 
-      const roleElement =
-        document.getElementById(
-          'currentRole'
-        );
-
-
-      if (userElement) {
-
-        userElement.textContent =
-          username;
-
-      }
-
-
-      if (roleElement) {
-
-        roleElement.textContent =
-          role;
-
-      }
-
-    })
-
-    .withFailureHandler(function(error) {
-
-      console.error(
-        'Gagal mendapatkan session:',
-        error
-      );
-
-      localStorage.removeItem('survey_token');
-      localStorage.removeItem('BRISK_AUTH_TOKEN');
-      window.location.replace('login.html?next=survey.html');
-
-    })
-
-    .getLoginSession();
-
+  getCurrentUser(function() {
+    console.log('🔄 Session sah. Mula load DM...');
+    loadDM();
+  });
 }
 
 
@@ -5753,9 +5734,7 @@ function goHome() {
    START
 ========================= */
 
-loadDM();
-
-getCurrentUser();
+initSurveyPage_();
 
 
 </script>
