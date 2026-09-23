@@ -3153,133 +3153,84 @@ function loadLocalities() {
   const kodDM =
     document.getElementById('dmSelect').value;
 
-
   const localitySelect =
     document.getElementById('localitySelect');
 
-
   localitySelect.innerHTML =
     '<option value="">Sedang dimuatkan...</option>';
-
   localitySelect.disabled = true;
 
-
   if (!kodDM) {
-
     localitySelect.innerHTML =
       '<option value="">Semua Lokaliti</option>';
 
-
-    document.getElementById(
-      'voterList'
-    ).innerHTML =
+    document.getElementById('voterList').innerHTML =
       '<div class="empty">Pilih DM untuk mula.</div>';
 
-
     updateSummary([]);
-
     return;
-
   }
 
+  const requestedDM = kodDM;
 
-  google.script.run
+  // GitHub Pages: panggil API JSONP terus.
+  githubJsonpRequest_(
+    'localities',
+    { kodDM: requestedDM },
+    function(response) {
 
-    .withSuccessHandler(function(data) {
-
-      // Pastikan DM yang diterima
-      // masih DM yang sedang dipilih
       const currentDM =
-        document.getElementById(
-          'dmSelect'
-        ).value;
+        document.getElementById('dmSelect').value;
 
-
-      if (currentDM !== kodDM) {
-
-        return;
-
-      }
-
+      if (currentDM !== requestedDM) return;
 
       localityList =
-        data || [];
-
+        response && Array.isArray(response.data)
+          ? response.data
+          : [];
 
       localitySelect.innerHTML =
         '<option value="">Semua Lokaliti</option>';
-
 
       localityList.forEach(function(locality) {
+        if (!locality) return;
 
-        const option =
-          document.createElement(
-            'option'
-          );
-
-
-        option.value =
-          locality.namaLokaliti;
-
-
-        option.textContent =
-          locality.namaLokaliti;
-
-
-        localitySelect.appendChild(
-          option
-        );
-
+        const option = document.createElement('option');
+        option.value = String(locality.namaLokaliti || '').trim();
+        option.textContent = String(locality.namaLokaliti || '').trim();
+        localitySelect.appendChild(option);
       });
 
-
       localitySelect.disabled = false;
 
-
-      // Hanya apply kalau DM masih sama
       if (
-        document.getElementById(
-          'dmSelect'
-        ).value === kodDM
+        document.getElementById('dmSelect').value === requestedDM
       ) {
-
         applyFilters();
-
       }
-
-    })
-
-
-    .withFailureHandler(function(error) {
+    },
+    function(error) {
 
       localitySelect.innerHTML =
-        '<option value="">Semua Lokaliti</option>';
-
-
+        '<option value="">Gagal memuatkan Lokaliti</option>';
       localitySelect.disabled = false;
 
-
       console.error(
-        'Gagal memuatkan lokaliti:',
+        '❌ Gagal memuatkan lokaliti:',
         error
       );
 
+      const message =
+        error && error.message
+          ? error.message
+          : String(error);
 
       showPremiumNotification(
         'error',
-        'Gagal memuatkan lokaliti: ' +
-        (
-          error && error.message
-            ? error.message
-            : error
-        )
+        'Gagal memuatkan lokaliti: ' + message
       );
-
-    })
-
-
-    .getLocalityList(kodDM);
-
+    }
+  );
 }
 
 /* =====================================================
