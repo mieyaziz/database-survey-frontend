@@ -3735,8 +3735,12 @@ function displayVoters(data) {
 
     currentVoters = [];
 
-    voterList.innerHTML =
-      '<div class="empty">Tiada pemilih dijumpai.</div>';
+    if (voterList) {
+
+      voterList.innerHTML =
+        '<div class="empty">Tiada pemilih dijumpai.</div>';
+
+    }
 
     updateSummary([]);
 
@@ -3752,217 +3756,404 @@ function displayVoters(data) {
   currentVoters = data;
 
 
+  if (!voterList) {
+    return;
+  }
+
+
+  // =========================
+  // RESET PAPARAN
+  // =========================
+
   voterList.innerHTML = '';
 
 
+  // Progress hanya SATU elemen.
+  // Jangan create progress baru pada setiap chunk.
+  const progress =
+    document.createElement('div');
+
+  progress.className =
+    'empty render-progress';
+
+  progress.style.margin =
+    '0 0 12px 0';
+
+  progress.style.padding =
+    '14px';
+
+  progress.textContent =
+    '🔄 Menyediakan ' +
+    data.length.toLocaleString('en-US') +
+    ' pemilih...';
+
+  voterList.appendChild(progress);
+
+
   let renderIndex = 0;
+
+  // 150 kad setiap frame.
+  // DocumentFragment digunakan supaya DOM tidak dikemas kini
+  // satu kad demi satu kad.
   const CHUNK_SIZE = 150;
+
 
   function renderChunk() {
 
     const endIndex =
-      Math.min(renderIndex + CHUNK_SIZE, data.length);
-
-    for (; renderIndex < endIndex; renderIndex++) {
-
-      const voter = data[renderIndex];
-
-    const div =
-      document.createElement('div');
-
-    div.className =
-      'voter';
-
-
-    // =========================
-    // TELEFON
-    // =========================
-
-    const telefon =
-      String(
-        voter['Tel. Bimbit'] || ''
-      ).trim();
-
-
-    // =========================
-    // CULA
-    // =========================
-
-    const culaHTML =
-      renderCulaBadges(
-        voter['Kod Cula']
+      Math.min(
+        renderIndex + CHUNK_SIZE,
+        data.length
       );
 
 
-    // =========================
-    // CATATAN
-    // =========================
-
-    const catatanHTML =
-      voter['Catatan']
-        ? `
-          <div class="voter-catatan">
-            📝 ${voter['Catatan']}
-          </div>
-        `
-        : '';
+    const fragment =
+      document.createDocumentFragment();
 
 
-    // =========================
-    // CARD
-    // =========================
+    for (
+      ;
+      renderIndex < endIndex;
+      renderIndex++
+    ) {
 
-    div.innerHTML = `
+      const voter =
+        data[renderIndex];
 
-      <div class="voter-top">
 
-        <div>
-          <div class="voter-name">
-            ${voter['Nama Pemilih'] || '-'}
-          </div>
+      const div =
+        document.createElement('div');
 
-          <div class="voter-meta">
-            No. K/P: ${voter['No. K/P (Baru)'] || '-'}
-          </div>
-        </div>
+      div.className =
+        'voter';
 
-        <div class="voter-age">
-          ${voter['umur'] || '-'}
-          <span>TAHUN</span>
-        </div>
 
-      </div>
+      // =========================
+      // TELEFON
+      // =========================
 
-      <div class="voter-divider"></div>
+      const telefon =
+        String(
+          voter['Tel. Bimbit'] || ''
+        ).trim();
 
-      <div class="voter-badges">
-        <span class="voter-badge">DM ${voter['Kod DM'] || voter['DM'] || '-'}</span>
-        <span class="voter-badge">Lokaliti ${voter['Kod Lokaliti'] || voter['Lokaliti'] || '-'}</span>
-        <span class="voter-badge">Rumah ${voter['No. Rumah'] || '-'}</span>
-        <span class="voter-badge">${voter['Jantina'] || '-'}</span>
-        <span class="voter-badge">${voter['Bangsa'] || '-'}</span>
-        ${culaHTML ? `<span class="voter-badge voter-badge-green">Cula ✓</span>` : ''}
-      </div>
 
-      <div class="voter-info-grid">
+      // =========================
+      // CULA
+      // =========================
 
-        <div class="voter-info-item">
-          <span class="info-label">🏠 RUMAH</span>
-          <strong>${voter['No. Rumah'] || '-'}</strong>
-        </div>
+      const culaHTML =
+        renderCulaBadges(
+          voter['Kod Cula']
+        );
 
-        <div class="voter-info-item">
-          <span class="info-label">📋 SIRI</span>
-          <strong>${voter['No. Siri'] || '-'}</strong>
-        </div>
 
-        <div class="voter-info-item">
-          <span class="info-label">📍 LOKALITI</span>
-          <strong>${voter['Nama Lokaliti'] || '-'}</strong>
-        </div>
+      // =========================
+      // CATATAN
+      // =========================
 
-        <div class="voter-info-item">
-          <span class="info-label">📱 TELEFON</span>
-          <strong>${telefon || '-'}</strong>
-        </div>
-
-        <div class="voter-info-item voter-info-wide">
-          <span class="info-label">🏠 ALAMAT KEDIAMAN</span>
-          <strong>${voter['Alamat Kediaman'] || '-'}</strong>
-        </div>
-
-        <div class="voter-info-item voter-info-full">
-          <span class="info-label">🪪 ALAMAT K/P</span>
-          <strong>${voter['Alamat K/P'] || '-'}</strong>
-        </div>
-
-        <div class="voter-info-item">
-          <span class="info-label">🎂 TARIKH LAHIR</span>
-          <strong>${voter['Tarikh Lahir'] || '-'}</strong>
-        </div>
-
-        <div class="voter-info-item">
-          <span class="info-label">🕒 TARIKH CULAAN</span>
-          <strong>${voter['Tarikh Culaan'] || '-'}</strong>
-        </div>
-
-        <div class="voter-info-item">
-          <span class="info-label">👤 DICULA OLEH</span>
-          <strong>${voter['Dicula Oleh'] || '-'}</strong>
-        </div>
-
-      </div>
-
-      ${
-        culaHTML
+      const catatanHTML =
+        voter['Catatan']
           ? `
-            <div class="voter-section">
-              <div class="voter-section-title">🏷️ KECENDERUNGAN</div>
-              <div class="voter-cula">${culaHTML}</div>
+            <div class="voter-catatan">
+              📝 ${voter['Catatan']}
             </div>
           `
-          : ''
-      }
+          : '';
 
-      ${catatanHTML}
 
-      <div class="voter-action">
+      // =========================
+      // CARD
+      // =========================
 
-        <button
-          type="button"
-          class="btn-edit-detail"
-          onclick='openEditDetail(${JSON.stringify(voter)})'>
-          ✏️ EDIT DETAIL
-        </button>
+      div.innerHTML = `
 
-        <button
-          type="button"
-          class="btn-keyin"
-          data-no-siri="${voter['No. Siri']}"
-          onclick='openCula(${JSON.stringify(voter)})'>
-          🏷️ KEY IN CULA
-        </button>
+        <div class="voter-top">
 
-      </div>
+          <div>
 
-    `;
+            <div class="voter-name">
+              ${voter['Nama Pemilih'] || '-'}
+            </div>
 
-    voterList.appendChild(div);
+            <div class="voter-meta">
+              No. K/P: ${voter['No. K/P (Baru)'] || '-'}
+            </div>
 
-    }
+          </div>
 
-    if (renderIndex < data.length) {
-      if (voterList) {
-        voterList.insertAdjacentHTML(
-          'afterbegin',
-          '<div class="empty render-progress" style="position:sticky;top:0;z-index:5;">🔄 Memaparkan ' + renderIndex + ' / ' + data.length + ' pemilih...</div>'
-        );
-        const progress = voterList.querySelector('.render-progress');
-        if (progress) {
-          progress.style.margin = '0 0 10px 0';
+          <div class="voter-age">
+            ${voter['umur'] || '-'}
+            <span>TAHUN</span>
+          </div>
+
+        </div>
+
+
+        <div class="voter-divider"></div>
+
+
+        <div class="voter-badges">
+
+          <span class="voter-badge">
+            DM ${voter['Kod DM'] || voter['DM'] || '-'}
+          </span>
+
+          <span class="voter-badge">
+            Lokaliti ${voter['Kod Lokaliti'] || voter['Lokaliti'] || '-'}
+          </span>
+
+          <span class="voter-badge">
+            Rumah ${voter['No. Rumah'] || '-'}
+          </span>
+
+          <span class="voter-badge">
+            ${voter['Jantina'] || '-'}
+          </span>
+
+          <span class="voter-badge">
+            ${voter['Bangsa'] || '-'}
+          </span>
+
+          ${
+            culaHTML
+              ? '<span class="voter-badge voter-badge-green">Cula ✓</span>'
+              : ''
+          }
+
+        </div>
+
+
+        <div class="voter-info-grid">
+
+          <div class="voter-info-item">
+
+            <span class="info-label">
+              🏠 RUMAH
+            </span>
+
+            <strong>
+              ${voter['No. Rumah'] || '-'}
+            </strong>
+
+          </div>
+
+
+          <div class="voter-info-item">
+
+            <span class="info-label">
+              📋 SIRI
+            </span>
+
+            <strong>
+              ${voter['No. Siri'] || '-'}
+            </strong>
+
+          </div>
+
+
+          <div class="voter-info-item">
+
+            <span class="info-label">
+              📍 LOKALITI
+            </span>
+
+            <strong>
+              ${voter['Nama Lokaliti'] || '-'}
+            </strong>
+
+          </div>
+
+
+          <div class="voter-info-item">
+
+            <span class="info-label">
+              📱 TELEFON
+            </span>
+
+            <strong>
+              ${telefon || '-'}
+            </strong>
+
+          </div>
+
+
+          <div class="voter-info-item voter-info-wide">
+
+            <span class="info-label">
+              🏠 ALAMAT KEDIAMAN
+            </span>
+
+            <strong>
+              ${voter['Alamat Kediaman'] || '-'}
+            </strong>
+
+          </div>
+
+
+          <div class="voter-info-item voter-info-full">
+
+            <span class="info-label">
+              🪪 ALAMAT K/P
+            </span>
+
+            <strong>
+              ${voter['Alamat K/P'] || '-'}
+            </strong>
+
+          </div>
+
+
+          <div class="voter-info-item">
+
+            <span class="info-label">
+              🎂 TARIKH LAHIR
+            </span>
+
+            <strong>
+              ${voter['Tarikh Lahir'] || '-'}
+            </strong>
+
+          </div>
+
+
+          <div class="voter-info-item">
+
+            <span class="info-label">
+              🕒 TARIKH CULAAN
+            </span>
+
+            <strong>
+              ${voter['Tarikh Culaan'] || '-'}
+            </strong>
+
+          </div>
+
+
+          <div class="voter-info-item">
+
+            <span class="info-label">
+              👤 DICULA OLEH
+            </span>
+
+            <strong>
+              ${voter['Dicula Oleh'] || '-'}
+            </strong>
+
+          </div>
+
+        </div>
+
+
+        ${
+          culaHTML
+            ? `
+              <div class="voter-section">
+
+                <div class="voter-section-title">
+                  🏷️ KECENDERUNGAN
+                </div>
+
+                <div class="voter-cula">
+                  ${culaHTML}
+                </div>
+
+              </div>
+            `
+            : ''
         }
-      }
-      requestAnimationFrame(renderChunk);
-      return;
+
+
+        ${catatanHTML}
+
+
+        <div class="voter-action">
+
+          <button
+            type="button"
+            class="btn-edit-detail"
+            onclick='openEditDetail(${JSON.stringify(voter)})'>
+
+            ✏️ EDIT DETAIL
+
+          </button>
+
+
+          <button
+            type="button"
+            class="btn-keyin"
+            data-no-siri="${voter['No. Siri']}"
+            onclick='openCula(${JSON.stringify(voter)})'>
+
+            🏷️ KEY IN CULA
+
+          </button>
+
+        </div>
+
+      `;
+
+
+      fragment.appendChild(div);
+
     }
 
-    const progress = voterList && voterList.querySelector('.render-progress');
-    if (progress) progress.remove();
+
+    // Masukkan satu batch ke DOM sekali sahaja.
+    voterList.appendChild(fragment);
+
+
+    // =========================
+    // UPDATE PROGRESS
+    // =========================
+
+    progress.textContent =
+      '🔄 Memaparkan ' +
+      renderIndex.toLocaleString('en-US') +
+      ' / ' +
+      data.length.toLocaleString('en-US') +
+      ' pemilih...';
+
+
+    // =========================
+    // SAMBUNG BATCH SETERUSNYA
+    // =========================
+
+    if (
+      renderIndex < data.length
+    ) {
+
+      requestAnimationFrame(
+        renderChunk
+      );
+
+      return;
+
+    }
+
+
+    // =========================
+    // SELESAI
+    // =========================
+
+    if (
+      progress &&
+      progress.parentNode
+    ) {
+
+      progress.remove();
+
+    }
+
 
     updateSummary(data);
+
   }
+
 
   renderChunk();
 
-
-  // =========================
-  // UPDATE SUMMARY
-  // =========================
-
-  // Summary dikemas kini selepas semua kad selesai dipaparkan.
-
 }
-
 function printVoterList() {
 
   // =========================
