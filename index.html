@@ -21,10 +21,18 @@ function getSurveyToken_() {
 window.loginToken = getSurveyToken_();
 
 function redirectToLogin_() {
+
   localStorage.removeItem('survey_token');
   localStorage.removeItem('BRISK_AUTH_TOKEN');
+
   window.loginToken = '';
-  window.location.replace('login.html?next=survey.html');
+
+  // Frontend sekarang sepenuhnya di GitHub Pages.
+  // Jangan kembali ke survey.html (flow lama).
+  window.location.replace(
+    'login.html?next=index.html'
+  );
+
 }
 
 function githubJsonpRequest_(action, params, success, failure) {
@@ -664,29 +672,99 @@ function confirmLogout() {
       'logoutModal'
     );
 
+
   if (modal) {
+
     modal.classList.remove(
       'show'
     );
+
   }
 
-  google.script.run
-    .withSuccessHandler(function() {
-      localStorage.removeItem('survey_token');
-      localStorage.removeItem('BRISK_AUTH_TOKEN');
-      window.top.location.href = GITHUB_PAGES_URL;
-    })
-    .withFailureHandler(function(error) {
-      console.error(error);
+
+  const token =
+    getSurveyToken_();
+
+
+  if (!token) {
+
+    // Tiada session tempatan.
+    // Terus ke login.
+    localStorage.removeItem('survey_token');
+    localStorage.removeItem('BRISK_AUTH_TOKEN');
+    window.loginToken = '';
+
+    window.location.replace(
+      'login.html?next=index.html'
+    );
+
+    return;
+
+  }
+
+
+  // =========================
+  // LOGOUT MELALUI JSONP API
+  // =========================
+
+  githubJsonpRequest_(
+    'logout',
+    {},
+    function(response) {
+
+      console.log(
+        'Logout berjaya:',
+        response
+      );
+
+
+      // =========================
+      // PADAM TOKEN TEMPATAN
+      // =========================
+
+      localStorage.removeItem(
+        'survey_token'
+      );
+
+      localStorage.removeItem(
+        'BRISK_AUTH_TOKEN'
+      );
+
+      window.loginToken = '';
+
+
+      // =========================
+      // TERUS KE LOGIN.HTML
+      // =========================
+
+      window.location.replace(
+        'login.html?next=index.html'
+      );
+
+    },
+    function(error) {
+
+      console.error(
+        'Gagal logout:',
+        error
+      );
+
+
+      /*
+       * Jika server gagal dihubungi tetapi
+       * token masih ada, jangan buang session
+       * secara senyap. Beri pilihan semula.
+       */
+
       showPremiumNotification(
         'error',
         'Gagal log keluar. Sila cuba lagi.'
       );
-    })
-    .logoutUser();
+
+    }
+  );
 
 }
-
 
 
 /* =====================================================
