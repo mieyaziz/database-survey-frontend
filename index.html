@@ -3382,9 +3382,15 @@ function applyFilters() {
   // SEARCH
   // =========================
 
-  google.script.run
+  githubJsonpRequest_(
+    'voters',
+    { filters: filters },
+    function(response) {
 
-    .withSuccessHandler(function(data) {
+      const data =
+        response && Array.isArray(response.data)
+          ? response.data
+          : [];
 
       // =========================
       // ABAIKAN RESPONSE LAMA
@@ -3413,10 +3419,8 @@ function applyFilters() {
         data || []
       );
 
-    })
-
-
-    .withFailureHandler(function(error) {
+    },
+    function(error) {
 
       // =========================
       // ABAIKAN ERROR LAMA
@@ -3460,12 +3464,8 @@ function applyFilters() {
         errorMessage
       );
 
-    })
-
-
-    .searchVoters(
-      filters
-    );
+    }
+  );
 
 }
 
@@ -3634,9 +3634,15 @@ function performTextSearch(
   // SEARCH
   // =========================
 
-  google.script.run
+  githubJsonpRequest_(
+    'voters',
+    { filters: filters },
+    function(response) {
 
-    .withSuccessHandler(function(data) {
+      const data =
+        response && Array.isArray(response.data)
+          ? response.data
+          : [];
 
       // =========================
       // ABAIKAN RESPONSE LAMA
@@ -3665,10 +3671,8 @@ function performTextSearch(
         data || []
       );
 
-    })
-
-
-    .withFailureHandler(function(error) {
+    },
+    function(error) {
 
       // =========================
       // ABAIKAN ERROR LAMA
@@ -3712,12 +3716,8 @@ function performTextSearch(
         errorMessage
       );
 
-    })
-
-
-    .searchVoters(
-      filters
-    );
+    }
+  );
 
 }
 
@@ -3755,7 +3755,17 @@ function displayVoters(data) {
   voterList.innerHTML = '';
 
 
-  data.forEach(function(voter) {
+  let renderIndex = 0;
+  const CHUNK_SIZE = 150;
+
+  function renderChunk() {
+
+    const endIndex =
+      Math.min(renderIndex + CHUNK_SIZE, data.length);
+
+    for (; renderIndex < endIndex; renderIndex++) {
+
+      const voter = data[renderIndex];
 
     const div =
       document.createElement('div');
@@ -3919,14 +3929,37 @@ function displayVoters(data) {
 
     voterList.appendChild(div);
 
-  });
+    }
+
+    if (renderIndex < data.length) {
+      if (voterList) {
+        voterList.insertAdjacentHTML(
+          'afterbegin',
+          '<div class="empty render-progress" style="position:sticky;top:0;z-index:5;">🔄 Memaparkan ' + renderIndex + ' / ' + data.length + ' pemilih...</div>'
+        );
+        const progress = voterList.querySelector('.render-progress');
+        if (progress) {
+          progress.style.margin = '0 0 10px 0';
+        }
+      }
+      requestAnimationFrame(renderChunk);
+      return;
+    }
+
+    const progress = voterList && voterList.querySelector('.render-progress');
+    if (progress) progress.remove();
+
+    updateSummary(data);
+  }
+
+  renderChunk();
 
 
   // =========================
   // UPDATE SUMMARY
   // =========================
 
-  updateSummary(data);
+  // Summary dikemas kini selepas semua kad selesai dipaparkan.
 
 }
 
