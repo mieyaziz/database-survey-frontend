@@ -8850,131 +8850,147 @@ function saveCula() {
   // =========================
   // SIMPAN KE SERVER
   // =========================
+  //
+  // GitHub Pages:
+  // guna JSONP API terus ke Apps Script.
+  // =========================
 
-  google.script.run
+  githubJsonpRequest_(
+    'save_cula',
+    {
+      nama:
+        data.nama || '',
 
-    .withSuccessHandler(
-      function(response) {
+      noRumah:
+        data.noRumah || '',
 
-        // =========================
-        // UPDATE DATA TEMPATAN
-        // =========================
+      noSiri:
+        data.noSiri || '',
 
-        voter['Kod Cula'] =
-          data.kodCula || '';
+      kodCula:
+        data.kodCula || '',
 
+      catatan:
+        data.catatan || ''
+    },
 
-        voter['Catatan'] =
-          data.catatan || '';
+    function(response) {
 
+      if (
+        !response ||
+        response.success === false
+      ) {
 
-        voter['Tarikh Culaan'] =
+        const message =
           response &&
-          response.tarikhCulaan
-            ? response.tarikhCulaan
-            : '';
+          response.message
+            ? response.message
+            : 'Gagal menyimpan Kod Cula.';
 
-
-        voter['Dicula Oleh'] =
-          response &&
-          response.diculakanOleh
-            ? response.diculakanOleh
-            : '';
-
-
-        // =========================
-        // TUTUP POPUP
-        // =========================
-
-        closeCula();
-
-
-        // =========================
-        // RESET BUTTON
-        // =========================
-
-        if (saveButton) {
-
-          saveButton.disabled = false;
-
-          saveButton.textContent =
-            '💾 SIMPAN KOD CULA';
-
-        }
-
-
-        // =========================
-        // NOTIFICATION
-        // =========================
-
-        showPremiumNotification(
-          'success',
-          'Data Cula berjaya disimpan.'
-        );
-
-
-        // =========================
-        // REFRESH SENARAI
-        // =========================
-
-        setTimeout(
-          function() {
-
-            applyFilters();
-
-          },
-          300
+        throw new Error(
+          message
         );
 
       }
-    )
 
 
-    .withFailureHandler(
-      function(error) {
+      // =========================
+      // UPDATE DATA TEMPATAN
+      // =========================
 
-        // =========================
-        // RESET BUTTON
-        // =========================
+      voter['Kod Cula'] =
+        data.kodCula || '';
 
-        if (saveButton) {
+      voter['Catatan'] =
+        data.catatan || '';
 
-          saveButton.disabled = false;
+      voter['Tarikh Culaan'] =
+        response.tarikhCulaan
+          ? response.tarikhCulaan
+          : '';
 
-          saveButton.textContent =
-            '💾 SIMPAN KOD CULA';
-
-        }
-
-
-        // =========================
-        // ERROR
-        // =========================
-
-        const errorMessage =
-          error &&
-          error.message
-            ? error.message
-            : error;
+      voter['Dicula Oleh'] =
+        response.diculakanOleh
+          ? response.diculakanOleh
+          : '';
 
 
-        console.error(
-          'Gagal simpan Kod Cula:',
-          error
-        );
+      // =========================
+      // TUTUP POPUP
+      // =========================
+
+      closeCula();
 
 
-        showPremiumNotification(
-          'error',
-          'Gagal simpan Kod Cula: ' +
-          errorMessage
-        );
+      // =========================
+      // RESET BUTTON
+      // =========================
+
+      if (saveButton) {
+
+        saveButton.disabled =
+          false;
+
+        saveButton.textContent =
+          '💾 SIMPAN KOD CULA';
 
       }
-    )
 
 
-    .saveCula(data);
+      // =========================
+      // NOTIFICATION
+      // =========================
+
+      showPremiumNotification(
+        'success',
+        'Data Cula berjaya disimpan.'
+      );
+
+
+      // Jangan panggil applyFilters()
+      // selepas simpan.
+      //
+      // Data voter semasa sudah
+      // dikemaskini di atas.
+      //
+      // Ini elakkan request kedua
+      // untuk ribuan rekod.
+    },
+
+    function(error) {
+
+      if (saveButton) {
+
+        saveButton.disabled =
+          false;
+
+        saveButton.textContent =
+          '💾 SIMPAN KOD CULA';
+
+      }
+
+
+      const errorMessage =
+        error &&
+        error.message
+          ? error.message
+          : error;
+
+
+      console.error(
+        'Gagal simpan Kod Cula:',
+        error
+      );
+
+
+      showPremiumNotification(
+        'error',
+        'Gagal simpan Kod Cula: ' +
+        errorMessage
+      );
+
+    }
+  );
 
 }
 
