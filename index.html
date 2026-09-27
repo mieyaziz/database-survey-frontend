@@ -4282,6 +4282,7 @@ function displayVoters(data) {
           <button
             type="button"
             class="btn-edit-detail"
+            data-no-siri="${voter['No. Siri'] || ''}"
             onclick='openEditDetail(${JSON.stringify(voter)})'>
 
             ✏️ EDIT DETAIL
@@ -9214,23 +9215,68 @@ function saveEditDetail() {
 
 
         // =========================
+        // UPDATE KAD SEMASA SAHAJA
+        // Jangan panggil applyFilters().
+        // Request baru akan membaca semula ribuan rekod.
+        // =========================
+
+        const editButton =
+          document.querySelector(
+            '.btn-edit-detail[data-no-siri="' +
+            CSS.escape(String(data.noSiri || '')) +
+            '"]'
+          );
+
+        if (editButton) {
+
+          const card =
+            editButton.closest('.voter');
+
+          if (card) {
+
+            const infoItems =
+              card.querySelectorAll(
+                '.voter-info-grid .voter-info-item'
+              );
+
+            infoItems.forEach(function(item) {
+
+              const label =
+                String(item.querySelector('.info-label')?.textContent || '')
+                  .toUpperCase();
+
+              const strong =
+                item.querySelector('strong');
+
+              if (!strong) return;
+
+              if (label.includes('TELEFON')) {
+                strong.textContent =
+                  data.telBimbit || '-';
+              }
+
+              if (label.includes('ALAMAT KEDIAMAN')) {
+                strong.textContent =
+                  data.alamatKediaman || '-';
+              }
+
+              if (label.includes('ALAMAT K/P')) {
+                strong.textContent =
+                  data.alamatKP || '-';
+              }
+
+            });
+
+          }
+
+        }
+
+
+        // =========================
         // TUTUP POPUP
         // =========================
 
         closeEditDetail();
-
-
-        // =========================
-        // REFRESH KAD
-        // =========================
-
-        if (
-          typeof applyFilters === 'function'
-        ) {
-
-          applyFilters();
-
-        }
 
 
         // =========================
