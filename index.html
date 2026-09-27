@@ -8848,6 +8848,8 @@ function saveCula() {
   }
 
 
+  const requestStart = performance.now();
+
   // =========================
   // SIMPAN KE SERVER
   // =========================
@@ -9164,6 +9166,12 @@ function saveEditDetail() {
     .withSuccessHandler(
       function(response) {
 
+        const networkMs = Math.round(performance.now() - requestStart);
+        console.log('EDIT DETAIL DIAGNOSTIC', {
+          networkMs: networkMs,
+          server: response && response.diagnostic ? response.diagnostic : null
+        });
+
         // =========================
         // RESET BUTTON
         // =========================
@@ -9288,7 +9296,9 @@ function saveEditDetail() {
 
         showPremiumNotification(
           'success',
-          'Maklumat pemilih berjaya dikemaskini.'
+          'Maklumat pemilih berjaya dikemaskini.\n' +
+          '⏱️ API: ' + networkMs + ' ms | Server: ' +
+          (response && response.diagnostic ? response.diagnostic.serverMs : '?') + ' ms'
         );
 
       }
