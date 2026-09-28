@@ -107,6 +107,7 @@ function createGoogleRunAdapter_() {
         else if (method === 'logoutUser') action = 'logout';
         else if (method === 'saveCula') { action = 'save_cula'; params = args[0] || {}; }
         else if (method === 'saveEditDetail') { action = 'edit_detail'; params = args[0] || {}; }
+        else if (method === 'getCulaHistory') { action = 'cula_history'; params = args[0] || {}; }
         else if (method === 'getWebAppUrl') { if (typeof successHandler === 'function') successHandler(GITHUB_PAGES_URL); return runner; }
         else { if (typeof failureHandler === 'function') failureHandler(new Error('API method tidak disokong: ' + method)); return runner; }
         githubJsonpRequest_(action, params, successHandler, failureHandler);
@@ -466,6 +467,75 @@ Object.defineProperty(window, 'google', {
   .btn-print { white-space: nowrap; padding: 8px 9px !important; }
 }
 
+
+
+
+/* =========================
+   SEJARAH CULA
+========================= */
+.cula-history-overlay {
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(15,23,42,.58);
+  z-index:10050;
+  backdrop-filter:blur(4px);
+}
+.cula-history-panel {
+  display:none;
+  position:fixed;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  width:min(1100px,94vw);
+  max-height:88vh;
+  overflow:hidden;
+  background:#fff;
+  border-radius:18px;
+  box-shadow:0 24px 70px rgba(15,23,42,.28);
+  z-index:10051;
+}
+.cula-history-head {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:16px 18px;
+  border-bottom:1px solid #e5e7eb;
+}
+.cula-history-title { font-size:17px; font-weight:900; color:#111827; }
+.cula-history-subtitle { font-size:11px; color:#6b7280; margin-top:3px; }
+.cula-history-close {
+  border:0; background:#f3f4f6; width:34px; height:34px; border-radius:10px;
+  font-size:20px; cursor:pointer;
+}
+.cula-history-filters {
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:9px;
+  padding:12px 18px;
+  background:#f8fafc;
+  border-bottom:1px solid #e5e7eb;
+}
+.cula-history-preset {
+  border:1px solid #d1d5db; background:#fff; border-radius:10px; padding:9px 10px;
+  font-size:11px; font-weight:800; cursor:pointer;
+}
+.cula-history-preset.active { border-color:#059669; box-shadow:0 0 0 2px rgba(5,150,105,.12); }
+.cula-history-date { display:flex; flex-direction:column; gap:4px; font-size:10px; font-weight:800; color:#475569; }
+.cula-history-date input { border:1px solid #d1d5db; border-radius:9px; padding:8px; font-size:11px; }
+.cula-history-actions { display:flex; align-items:end; gap:8px; }
+.cula-history-search { border:0; background:#059669; color:#fff; border-radius:10px; padding:9px 13px; font-size:11px; font-weight:900; cursor:pointer; }
+.cula-history-count { padding:10px 18px; font-size:11px; font-weight:800; color:#475569; }
+.cula-history-table-wrap { overflow:auto; max-height:58vh; padding:0 18px 18px; }
+.cula-history-table { width:100%; border-collapse:collapse; font-size:11px; min-width:850px; }
+.cula-history-table th { position:sticky; top:0; background:#f1f5f9; color:#334155; text-align:left; padding:9px 8px; border-bottom:1px solid #cbd5e1; }
+.cula-history-table td { padding:9px 8px; border-bottom:1px solid #eef2f7; vertical-align:top; }
+.cula-history-empty { text-align:center; color:#64748b; padding:30px !important; }
+@media (max-width:700px) {
+  .cula-history-panel { width:96vw; max-height:90vh; }
+  .cula-history-filters { grid-template-columns:1fr 1fr; }
+}
 
 </style>
 
@@ -2582,6 +2652,16 @@ function showPremiumNotification(
 
 
   <div class="survey-header-actions">
+
+    <button
+      type="button"
+      class="survey-home-btn"
+      onclick="openCulaHistory()">
+
+      📜 Sejarah Cula
+
+    </button>
+
 
     <button
       type="button"
@@ -6107,14 +6187,6 @@ function toggleMobileSearch() {
 
 }
 
-function goHome() {
-
-  window.top.location.href =
-    GITHUB_PAGES_URL;
-
-}
-
-
 /* =========================
    START
 ========================= */
@@ -6406,6 +6478,57 @@ initSurveyPage_();
 
 </div>
 
+</div>
+
+<!-- SEJARAH CULA -->
+<div id="culaHistoryOverlay" class="cula-history-overlay" onclick="closeCulaHistory()"></div>
+
+<div id="culaHistoryPanel" class="cula-history-panel">
+  <div class="cula-history-head">
+    <div>
+      <div class="cula-history-title">📜 Sejarah Cula</div>
+      <div class="cula-history-subtitle">Rekod setiap kali Kod Cula disimpan</div>
+    </div>
+    <button type="button" class="cula-history-close" onclick="closeCulaHistory()">×</button>
+  </div>
+
+  <div class="cula-history-filters">
+    <button type="button" class="cula-history-preset" data-days="7" onclick="setCulaHistoryPreset(7)">7 Hari</button>
+    <button type="button" class="cula-history-preset" data-days="14" onclick="setCulaHistoryPreset(14)">14 Hari</button>
+    <button type="button" class="cula-history-preset" data-days="30" onclick="setCulaHistoryPreset(30)">30 Hari</button>
+    <button type="button" class="cula-history-preset" data-days="custom" onclick="setCulaHistoryPreset('custom')">Custom</button>
+
+    <label class="cula-history-date">Dari
+      <input type="date" id="culaHistoryFrom">
+    </label>
+    <label class="cula-history-date">Hingga
+      <input type="date" id="culaHistoryTo">
+    </label>
+    <div></div>
+    <div class="cula-history-actions">
+      <button type="button" class="cula-history-search" onclick="loadCulaHistory()">🔎 CARI</button>
+    </div>
+  </div>
+
+  <div id="culaHistoryCount" class="cula-history-count">-</div>
+  <div class="cula-history-table-wrap">
+    <table class="cula-history-table">
+      <thead>
+        <tr>
+          <th>Tarikh Cula</th>
+          <th>No. Siri</th>
+          <th>Nama Pemilih</th>
+          <th>No. Rumah</th>
+          <th>Kod Cula</th>
+          <th>Dicula Oleh</th>
+          <th>Catatan</th>
+        </tr>
+      </thead>
+      <tbody id="culaHistoryBody">
+        <tr><td colspan="7" class="cula-history-empty">Pilih tempoh dan tekan CARI.</td></tr>
+      </tbody>
+    </table>
+  </div>
 </div>
 
 <!-- EDIT DETAIL OVERLAY -->
@@ -8997,6 +9120,117 @@ function saveCula() {
 let currentEditVoter = null;
 
 
+
+function culaHistoryDateString_(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return year + '-' + month + '-' + day;
+}
+
+function setCulaHistoryPreset(days) {
+  const from = document.getElementById('culaHistoryFrom');
+  const to = document.getElementById('culaHistoryTo');
+  if (!from || !to) return;
+
+  const today = new Date();
+  const end = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const start = new Date(end);
+
+  if (days === 'custom') {
+    document.querySelectorAll('.cula-history-preset').forEach(function(btn) {
+      btn.classList.toggle('active', btn.dataset.days === 'custom');
+    });
+    return;
+  }
+
+  start.setDate(start.getDate() - (Number(days) - 1));
+  from.value = culaHistoryDateString_(start);
+  to.value = culaHistoryDateString_(end);
+
+  document.querySelectorAll('.cula-history-preset').forEach(function(btn) {
+    btn.classList.toggle('active', btn.dataset.days === String(days));
+  });
+}
+
+function openCulaHistory() {
+  const overlay = document.getElementById('culaHistoryOverlay');
+  const panel = document.getElementById('culaHistoryPanel');
+  if (!overlay || !panel) return;
+
+  overlay.style.display = 'block';
+  panel.style.display = 'block';
+
+  setCulaHistoryPreset(7);
+  loadCulaHistory();
+}
+
+function closeCulaHistory() {
+  const overlay = document.getElementById('culaHistoryOverlay');
+  const panel = document.getElementById('culaHistoryPanel');
+  if (overlay) overlay.style.display = 'none';
+  if (panel) panel.style.display = 'none';
+}
+
+function loadCulaHistory() {
+  const from = document.getElementById('culaHistoryFrom');
+  const to = document.getElementById('culaHistoryTo');
+  const body = document.getElementById('culaHistoryBody');
+  const count = document.getElementById('culaHistoryCount');
+
+  if (!from || !to || !body) return;
+
+  if (!from.value || !to.value) {
+    showPremiumNotification('error', 'Sila pilih tarikh Dari dan Hingga.');
+    return;
+  }
+
+  if (from.value > to.value) {
+    showPremiumNotification('error', 'Tarikh Dari tidak boleh melebihi Tarikh Hingga.');
+    return;
+  }
+
+  body.innerHTML = '<tr><td colspan="7" class="cula-history-empty">⏳ Sedang mencari sejarah Cula...</td></tr>';
+  if (count) count.textContent = 'Mencari...';
+
+  google.script.run
+    .withSuccessHandler(function(response) {
+      const rows = response && response.data ? response.data : [];
+
+      if (count) {
+        count.textContent = rows.length + ' rekod sejarah Cula';
+      }
+
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="7" class="cula-history-empty">Tiada rekod Cula dalam tempoh ini.</td></tr>';
+        return;
+      }
+
+      body.innerHTML = rows.map(function(row) {
+        return `
+          <tr>
+            <td>${escapeHTML(row.tarikhCula || '-')}</td>
+            <td>${escapeHTML(row.noSiri || '-')}</td>
+            <td><strong>${escapeHTML(row.nama || '-')}</strong></td>
+            <td>${escapeHTML(row.noRumah || '-')}</td>
+            <td><strong>${escapeHTML(row.kodCula || '-')}</strong></td>
+            <td>${escapeHTML(row.diculakanOleh || '-')}</td>
+            <td>${escapeHTML(row.catatan || '-')}</td>
+          </tr>
+        `;
+      }).join('');
+    })
+    .withFailureHandler(function(error) {
+      const message = error && error.message ? error.message : 'Gagal mendapatkan sejarah Cula.';
+      body.innerHTML = '<tr><td colspan="7" class="cula-history-empty">' + escapeHTML(message) + '</td></tr>';
+      if (count) count.textContent = 'Ralat';
+    })
+    .getCulaHistory({
+      fromDate: from.value,
+      toDate: to.value
+    });
+}
+
 function openEditDetail(voter) {
 
   currentEditVoter = voter;
@@ -9158,10 +9392,11 @@ function saveEditDetail() {
   // SIMPAN KE SERVER
   // =========================
 
-  google.script.run
+  githubJsonpRequest_(
+    'edit_detail',
+    data,
 
-    .withSuccessHandler(
-      function(response) {
+    function(response) {
 
         // =========================
         // RESET BUTTON
@@ -9226,14 +9461,8 @@ function saveEditDetail() {
         // =========================
         // REFRESH KAD
         // =========================
-
-        if (
-          typeof applyFilters === 'function'
-        ) {
-
-          applyFilters();
-
-        }
+        // Jangan reload 27k+ rekod. Data pemilih semasa
+        // sudah dikemaskini dalam objek tempatan.
 
 
         // =========================
@@ -9246,11 +9475,9 @@ function saveEditDetail() {
         );
 
       }
-    )
+    ,
 
-
-    .withFailureHandler(
-      function(error) {
+    function(error) {
 
         // =========================
         // RESET BUTTON
@@ -9290,10 +9517,7 @@ function saveEditDetail() {
         );
 
       }
-    )
-
-
-    .saveEditDetail(data);
+    );
 
 }
 
