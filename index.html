@@ -9162,7 +9162,17 @@ function openCulaHistory() {
   panel.style.display = 'block';
 
   setCulaHistoryPreset(7);
-  loadCulaHistory();
+
+  const body = document.getElementById('culaHistoryBody');
+  const count = document.getElementById('culaHistoryCount');
+
+  if (body) {
+    body.innerHTML = '<tr><td colspan="7" class="cula-history-empty">Pilih tempoh tarikh dan tekan 🔎 CARI untuk melihat sejarah Cula.</td></tr>';
+  }
+
+  if (count) {
+    count.textContent = 'Belum dicari';
+  }
 }
 
 function closeCulaHistory() {
